@@ -161,3 +161,5 @@ cython_debug/
 
 # Project
 /data/
+notebooks/sandbox/
+cdrpy/_version.py
