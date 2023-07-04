@@ -1,0 +1,4 @@
+name: screendl_multi_omic
+batch_size: 32
+epochs: 15
+learning_rate: 0.0001
