@@ -163,3 +163,4 @@ cython_debug/
 /data/
 notebooks/sandbox/
 cdrpy/_version.py
+.vscode/
