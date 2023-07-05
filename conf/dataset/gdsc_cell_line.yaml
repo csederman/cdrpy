@@ -4,7 +4,6 @@ sources:
   label: "LabelDoseResponse.csv"
   cell:
     rna: "FeatureOmicsExpression1771MiniCancerGenomeGenesFPKMLogp1.csv"
-    dna: "FeatureOmicsDriverMutations186MutPanningGenes.csv"
   drug:
     fp: "FeatureChemMorganFingerprint1024Bit.csv"
 label_args:
@@ -12,4 +11,4 @@ label_args:
   drug_id_col: "drug_id"
   label_col: "ln_ic50"
 split_subdir: "splits/tumor_blind"
-scale_labels_per_drug: false
+scale_labels_per_drug: true

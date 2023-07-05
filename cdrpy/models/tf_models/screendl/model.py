@@ -12,8 +12,8 @@ keras = tf.keras  # pylance issue #1066
 from keras import Model
 from keras import layers, losses, optimizers
 
-from ...data.datasets import Dataset
-from ...data.types import EncodedDataset, EncodedFeatures
+from ....data.datasets import Dataset
+from ....data.types import EncodedDataset, EncodedFeatures
 
 
 def _build_rna_model(dim: int) -> keras.Sequential:
@@ -21,11 +21,16 @@ def _build_rna_model(dim: int) -> keras.Sequential:
     model = keras.Sequential(
         [
             layers.Input((dim,), name="rna_input"),
-            layers.GaussianNoise(0.05, name="rna_noise1"),
-            layers.Dense(dim, "relu", name="rna_dense1"),
-            layers.Dense(int(dim / 2), "relu", name="rna_dense2"),
-            layers.Dense(int(dim / 4), "relu", name="rna_dense3"),
-            layers.Dense(int(dim / 8), "relu", name="rna_dense4"),
+            layers.GaussianNoise(0.05, name="rna_noise_1"),
+            layers.Dense(dim, "relu", name="rna_dense_1"),
+            layers.BatchNormalization(name="rna_bnorm_1"),
+            layers.Dense(int(dim / 2), "relu", name="rna_dense_2"),
+            layers.BatchNormalization(name="rna_bnorm_2"),
+            layers.Dense(int(dim / 4), "relu", name="rna_dense_3"),
+            layers.BatchNormalization(name="rna_bnorm_3"),
+            layers.Dense(int(dim / 8), "relu", name="rna_dense_4"),
+            layers.BatchNormalization(name="rna_bnorm_4"),
+            # layers.Dense(int(dim / 16), "relu", name="rna_dense5"),
         ]
     )
 
@@ -37,10 +42,14 @@ def _build_dna_model(dim: int) -> keras.Sequential:
     model = keras.Sequential(
         [
             layers.Input((dim,), name="dna_input"),
-            layers.Dense(dim, "relu", name="dna_dense1"),
-            layers.Dense(int(dim / 2), "relu", name="dna_dense2"),
-            layers.Dense(int(dim / 4), "relu", name="dna_dense3"),
-            layers.Dense(int(dim / 8), "relu", name="dna_dense4"),
+            layers.Dense(dim, "relu", name="dna_dense_1"),
+            layers.BatchNormalization(name="dna_bnorm_1"),
+            layers.Dense(int(dim / 2), "relu", name="dna_dense_2"),
+            layers.BatchNormalization(name="dna_bnorm_2"),
+            layers.Dense(int(dim / 4), "relu", name="dna_dense_3"),
+            layers.BatchNormalization(name="dna_bnorm_3"),
+            layers.Dense(int(dim / 8), "relu", name="dna_dense_4"),
+            layers.BatchNormalization(name="dna_bnorm_4"),
         ]
     )
 
@@ -54,10 +63,17 @@ def _build_fp_model(dim: int) -> keras.Sequential:
     model = keras.Sequential(
         [
             layers.Input((dim,), name="fp_input"),
-            layers.Dense(dim, "relu", name="fp_dense1"),
-            layers.Dense(100, "relu", name="fp_dense2"),
-            layers.Dense(50, "relu", name="fp_dense3"),
-            layers.Dense(10, "relu", name="fp_dense4"),
+            layers.Dense(dim, "relu", name="fp_dense_1"),
+            layers.BatchNormalization(name="fp_bnorm_1"),
+            # layers.Dense(100, "relu", name="fp_dense2"),
+            # layers.Dense(50, "relu", name="fp_dense3"),
+            # layers.Dense(10, "relu", name="fp_dense4"),
+            layers.Dense(int(dim / 2), "relu", name="fp_dense_2"),
+            layers.BatchNormalization(name="fp_bnorm_2"),
+            layers.Dense(int(dim / 4), "relu", name="fp_dense_3"),
+            layers.BatchNormalization(name="fp_bnorm_3"),
+            layers.Dense(int(dim / 8), "relu", name="fp_dense_4"),
+            layers.BatchNormalization(name="fp_bnorm_4"),
         ]
     )
 
@@ -72,10 +88,15 @@ def _build_model(channels: list[keras.Sequential]) -> keras.Model:
 
     x = layers.Concatenate(name="concat")(outputs)
     x = layers.Dense(dim, "relu", name="final_dense1")(x)
-    x = layers.Dense(int(dim / 2), "relu", name="final_dense2")(x)
-    x = layers.Dense(int(dim / 4), "relu", name="final_dense3")(x)
-    x = layers.Dense(int(dim / 8), "relu", name="final_dense4")(x)
-    x = layers.Dense(int(dim / 10), "relu", name="final_dense5")(x)
+    x = layers.BatchNormalization(name="final_bnorm_1")(x)
+    x = layers.Dense(int(dim / 2), "relu", name="final_dense_2")(x)
+    x = layers.BatchNormalization(name="final_bnorm_2")(x)
+    x = layers.Dense(int(dim / 4), "relu", name="final_dense_3")(x)
+    x = layers.BatchNormalization(name="final_bnorm_3")(x)
+    x = layers.Dense(int(dim / 8), "relu", name="final_dense_4")(x)
+    x = layers.BatchNormalization(name="final_bnorm_4")(x)
+    x = layers.Dense(int(dim / 10), "relu", name="final_dense_5")(x)
+    x = layers.BatchNormalization(name="final_bnorm_5")(x)
     x = layers.Dense(1, "linear", name="final_activation")(x)
 
     return Model(inputs, x, name="base_model")

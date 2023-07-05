@@ -34,7 +34,6 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from cdrpy.data import datasets
 from cdrpy.splits import Split
 from cdrpy.trans.transformers import GroupedStandardScaler
-from cdrpy.util.types import PathLike
 from cdrpy.util.io import read_pickled_list
 from cdrpy.metrics.tf_metrics import pearson
 from cdrpy.models.tf_models import screendl
@@ -164,28 +163,35 @@ def fit_model(
     FIXME: remove cell_features and drug_features args
     FIXME: make this more flexible
     """
-    cell_features = ["dna", "rna"]
-    # cell_features = ["rna"]
+    # cell_features = ["dna", "rna"]
+    cell_features = ["rna"]
     drug_features = ["fp"]
 
     X_train, y_train, *_ = train_ds.encode(cell_features, drug_features)
     X_val, y_val, *_ = val_ds.encode(cell_features, drug_features)
 
-    dna_shape = X_train[0].shape[1]
-    rna_shape = X_train[1].shape[1]
-    fp_shape = X_train[2].shape[1]
-    # rna_shape = X_train[0].shape[1]
-    # fp_shape = X_train[1].shape[1]
+    # dna_shape = X_train[0].shape[1]
+    # rna_shape = X_train[1].shape[1]
+    # fp_shape = X_train[2].shape[1]
+    rna_shape = X_train[0].shape[1]
+    fp_shape = X_train[1].shape[1]
 
-    dna_model = screendl._build_dna_model(dna_shape)
+    # dna_model = screendl._build_dna_model(dna_shape)
     rna_model = screendl._build_rna_model(rna_shape)
     fp_model = screendl._build_fp_model(fp_shape)
 
-    # model = screendl._build_model([rna_model, fp_model])
-    model = screendl._build_model([dna_model, rna_model, fp_model])
+    model = screendl._build_model([rna_model, fp_model])
+    # model = screendl._build_model([dna_model, rna_model, fp_model])
+
+    scheduler = tf.keras.optimizers.schedules.ExponentialDecay(
+        learning_rate,
+        decay_steps=20000,
+        decay_rate=0.96,
+        staircase=True,
+    )
 
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+        optimizer=keras.optimizers.Adam(learning_rate=scheduler),
         loss=keras.losses.MeanSquaredError(),
         metrics=[pearson, "mse", "mae"],
     )
@@ -266,8 +272,8 @@ def run(cfg: Config) -> None:
 
         pred_dfs = []
         for d in (train_ds, val_ds, test_ds):
-            # for batch in d.encode_batches(["rna"], ["fp"], 32):
-            for batch in d.encode_batches(["dna", "rna"], ["fp"], 32):
+            for batch in d.encode_batches(["rna"], ["fp"], 32):
+                # for batch in d.encode_batches(["dna", "rna"], ["fp"], 32):
                 batch_features, batch_labels, batch_cells, batch_drugs = batch
                 batch_preds = model.predict_on_batch(batch_features)
                 batch_preds = batch_preds.reshape(-1)

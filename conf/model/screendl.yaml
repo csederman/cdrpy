@@ -1,4 +1,4 @@
-name: screendl_multi_omic
+name: screendl_xl_batch_norm_rna_only
 batch_size: 32
 epochs: 15
 learning_rate: 0.0001
