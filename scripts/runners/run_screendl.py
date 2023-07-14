@@ -31,7 +31,7 @@ from pathlib import Path
 from hydra.core.config_store import ConfigStore
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from cdrpy.data import datasets
+from cdrpy.data import _datasets
 from cdrpy.splits import Split
 from cdrpy.trans.transformers import GroupedStandardScaler
 from cdrpy.util.io import read_pickled_list
@@ -55,15 +55,15 @@ def load_splits(split_dir: Path) -> t.Generator[Split, None, None]:
 
 
 def scale_expression(
-    train_ds: datasets.Dataset,
-    val_ds: datasets.Dataset,
-    test_ds: datasets.Dataset,
+    train_ds: _datasets.Dataset,
+    val_ds: _datasets.Dataset,
+    test_ds: _datasets.Dataset,
     feature_name: str = "rna",
-) -> tuple[datasets.Dataset, datasets.Dataset, datasets.Dataset]:
+) -> tuple[_datasets.Dataset, _datasets.Dataset, _datasets.Dataset]:
     """"""
     exp_normalizer = MinMaxScaler()
     _ = exp_normalizer.fit(train_ds.cell_features[feature_name].values)
-    exp_norm_func = datasets.make_pandas_transformer(exp_normalizer.transform)
+    exp_norm_func = _datasets.make_pandas_transformer(exp_normalizer.transform)
 
     train_ds = train_ds.transform_cell_feature(feature_name, exp_norm_func)
     val_ds = val_ds.transform_cell_feature(feature_name, exp_norm_func)
@@ -73,17 +73,17 @@ def scale_expression(
 
 
 def scale_labels(
-    train_ds: datasets.Dataset,
-    val_ds: datasets.Dataset,
-    test_ds: datasets.Dataset,
-) -> tuple[datasets.Dataset, datasets.Dataset, datasets.Dataset]:
+    train_ds: _datasets.Dataset,
+    val_ds: _datasets.Dataset,
+    test_ds: _datasets.Dataset,
+) -> tuple[_datasets.Dataset, _datasets.Dataset, _datasets.Dataset]:
     """"""
     train_labels = train_ds.labels.reshape(-1, 1)
 
     label_scaler = StandardScaler()
     _ = label_scaler.fit(train_labels)
 
-    def transform(ds: datasets.Dataset) -> datasets.Dataset:
+    def transform(ds: _datasets.Dataset) -> _datasets.Dataset:
         labels = ds.labels.reshape(-1, 1)
         ds.obs[["label"]] = label_scaler.transform(labels)
         return ds
@@ -92,10 +92,10 @@ def scale_labels(
 
 
 def scale_labels_grouped(
-    train_ds: datasets.Dataset,
-    val_ds: datasets.Dataset,
-    test_ds: datasets.Dataset,
-) -> tuple[datasets.Dataset, datasets.Dataset, datasets.Dataset]:
+    train_ds: _datasets.Dataset,
+    val_ds: _datasets.Dataset,
+    test_ds: _datasets.Dataset,
+) -> tuple[_datasets.Dataset, _datasets.Dataset, _datasets.Dataset]:
     """"""
     train_labels = train_ds.labels.reshape(-1, 1)
     train_groups = train_ds.drug_ids
@@ -103,7 +103,7 @@ def scale_labels_grouped(
     label_scaler = GroupedStandardScaler(use_median=True)
     _ = label_scaler.fit(train_labels, groups=train_groups)
 
-    def transform(ds: datasets.Dataset) -> datasets.Dataset:
+    def transform(ds: _datasets.Dataset) -> _datasets.Dataset:
         labels = ds.labels.reshape(-1, 1)
         groups = ds.drug_ids
         ds.obs[["label"]] = label_scaler.transform(labels, groups=groups)
@@ -112,7 +112,7 @@ def scale_labels_grouped(
     return (transform(train_ds), transform(val_ds), transform(test_ds))
 
 
-def get_pred_df(ds: datasets.Dataset, preds: np.ndarray) -> pd.DataFrame:
+def get_pred_df(ds: _datasets.Dataset, preds: np.ndarray) -> pd.DataFrame:
     """"""
     return pd.DataFrame(
         {
@@ -130,10 +130,10 @@ cs.store(name="base_config", node=Config)
 
 
 def preprocess_data(
-    ds: datasets.Dataset,
+    ds: _datasets.Dataset,
     split: Split,
     scale_labels_per_drug: bool,
-) -> tuple[datasets.Dataset, datasets.Dataset, datasets.Dataset]:
+) -> tuple[_datasets.Dataset, _datasets.Dataset, _datasets.Dataset]:
     """"""
     train_ds = ds.select(ids=split.train_ids, name="train")
     val_ds = ds.select(ids=split.val_ids, name="val")
@@ -151,8 +151,8 @@ def preprocess_data(
 
 
 def fit_model(
-    train_ds: datasets.Dataset,
-    val_ds: datasets.Dataset,
+    train_ds: _datasets.Dataset,
+    val_ds: _datasets.Dataset,
     out_dir: Path,
     log_dir: Path,
     epochs: int = 10,
@@ -233,7 +233,7 @@ def run(cfg: Config) -> None:
     cell_sources = {k: (ds_dir / v) for k, v in ds_sources.cell.items()}
     drug_sources = {k: (ds_dir / v) for k, v in ds_sources.drug.items()}
 
-    ds = datasets.load_dataset(
+    ds = _datasets.load_dataset(
         label_source=label_source,
         label_args=cfg.dataset.label_args,
         cell_sources=cell_sources,

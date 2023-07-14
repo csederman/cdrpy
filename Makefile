@@ -3,10 +3,11 @@
 data_dir = "./data/raw"
 
 cmp_base = "https://cog.sanger.ac.uk/cmp/download"
+dgidb_base = "https://www.dgidb.org/data/monthly_tsvs/2022-Feb"
 gdsc_base = "https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.4"
 gdsc_api_base = "https://www.cancerrxgene.org/api"
 
-all: cmp gdsc depmap
+all: cmp gdsc depmap dgidb
 
 cmp:
 	mkdir -p $(data_dir)/CellModelPassports
@@ -34,6 +35,15 @@ cmp:
 		unzip -d $(data_dir)/CellModelPassports $(data_dir)/CellModelPassports/WES_pureCN_CNV_genes_20221213.zip; \
 	fi
 
+dgidb:
+	mkdir -p $(data_dir)/DGIdb
+	echo "Downloading DGIdb data..."
+	wget --no-check-certificate -P $(data_dir)/DGIdb $(dgidb_base)/interactions.tsv
+	wget --no-check-certificate -P $(data_dir)/DGIdb $(dgidb_base)/drugs.tsv
+	wget --no-check-certificate -P $(data_dir)/DGIdb $(dgidb_base)/genes.tsv
+	wget --no-check-certificate -P $(data_dir)/DGIdb $(dgidb_base)/categories.tsv
+	echo "Finished downloading DGIdb data!"
+
 gdsc:
 	mkdir -p $(data_dir)/GDSCv1
 	echo "Downloading GDSCv1 data..."
@@ -47,4 +57,4 @@ depmap:
 	mkdir -p $(data_dir)/DepMap
 	echo "Downloading DepMap data..."
 	
-.PHONY: all cmp gdsc gdsc depmap
+.PHONY: all cmp gdsc gdsc depmap dgidb

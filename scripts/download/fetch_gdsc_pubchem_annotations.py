@@ -27,9 +27,8 @@ url_fmt = f"{url_base}/{{}}/property/{properties}/JSON"
 
 
 @click.command()
-@click.option("--output-dir", help="Output directory.")
 def main() -> None:
-    gdsc_data_folder = Path("../../data/raw/GDSC")
+    gdsc_data_folder = Path("data/raw/GDSC")
     gdsc_drug_list = pl.read_csv(
         gdsc_data_folder / "drug_list_2023_06_23_curation.csv",
         dtypes={
