@@ -13,7 +13,9 @@ import tensorflow as tf
 from dataclasses import dataclass
 
 
-EncodedDataset = t.Tuple[t.Any, t.Any, np.ndarray, np.ndarray, np.ndarray]
+EncodedDataset = t.Union[
+    t.Tuple[t.Any, np.ndarray], t.Tuple[t.Any, np.ndarray, np.ndarray]
+]
 
 
 @dataclass(repr=False)
@@ -67,7 +69,7 @@ class Dataset:
         """"""
         # FIXME: add check that encoders return arrays
         # FIXME: add interface for encoder type (has encoder.encode method)
-        return _encode(self, cell_encoders, drug_encoders, return_ids)
+        return encode(self, cell_encoders, drug_encoders, return_ids)
 
     def encode_tf(
         self,
@@ -76,7 +78,7 @@ class Dataset:
         return_ids: bool = False,
     ) -> tf.data.Dataset:
         """"""
-        return _encode_tf(self, cell_encoders, drug_encoders, return_ids)
+        return encode_tf(self, cell_encoders, drug_encoders, return_ids)
 
     def encode_batches(
         self,
@@ -88,7 +90,7 @@ class Dataset:
         """"""
         split_inds = np.arange(batch_size, self.size, batch_size)
         for batch_df in np.array_split(self.obs, split_inds):
-            yield _encode(batch_df, cell_encoders, drug_encoders, return_ids)
+            yield encode_df(batch_df, cell_encoders, drug_encoders, return_ids)
 
     def select(self, ids: t.Iterable[str], **kwargs) -> Dataset:
         """"""
@@ -96,18 +98,18 @@ class Dataset:
         obs = self.obs[self.obs["id"].isin(ids)].copy(deep=True)
         return Dataset(obs, **kwargs)
 
+    def shuffle(self, random_state: t.Any = None) -> None:
+        """Shuffle the drug response observations."""
+        self.obs = self.obs.sample(frac=1, random_state=random_state)
+
     @classmethod
-    def from_csv(
-        cls, file_path: str, shuffle: bool = True, **kwargs
-    ) -> Dataset:
+    def from_csv(cls, file_path: str, **kwargs) -> Dataset:
         """"""
         df = pd.read_csv(file_path, dtype={"label": np.float32})
-        if shuffle:
-            df = df.sample(frac=1)
         return cls(df, **kwargs)
 
 
-def _encode(
+def encode(
     ds: Dataset,
     cell_encoders: t.Sequence[t.Any],
     drug_encoders: t.Sequence[t.Any],
@@ -116,13 +118,34 @@ def _encode(
     """"""
     cell_feat = tuple(e.encode(ds.cell_ids) for e in cell_encoders)
     drug_feat = tuple(e.encode(ds.drug_ids) for e in drug_encoders)
+    features = cell_feat + drug_feat
 
     if return_ids:
-        return (cell_feat, drug_feat, ds.labels, ds.cell_ids, ds.drug_ids)
-    return (cell_feat, drug_feat, ds.labels)
+        return (features, ds.labels, ds.cell_ids, ds.drug_ids)
+    return (features, ds.labels)
 
 
-def _encode_tf(
+def encode_df(
+    df: pd.DataFrame,
+    cell_encoders: t.Sequence[t.Any],
+    drug_encoders: t.Sequence[t.Any],
+    return_ids: bool = False,
+) -> EncodedDataset:
+    """"""
+    cell_ids = df["cell_id"].values
+    drug_ids = df["drug_id"].values
+    labels = df["label"].values
+
+    cell_feat = tuple(e.encode(cell_ids) for e in cell_encoders)
+    drug_feat = tuple(e.encode(drug_ids) for e in drug_encoders)
+    features = cell_feat + drug_feat
+
+    if return_ids:
+        return (features, labels, cell_ids, drug_ids)
+    return (features, labels)
+
+
+def encode_tf(
     ds: Dataset,
     cell_encoders: t.Sequence[t.Any],
     drug_encoders: t.Sequence[t.Any],

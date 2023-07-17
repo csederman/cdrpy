@@ -15,6 +15,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from cdrpy.types import PathLike
+from cdrpy.util.decorators import unstable
 
 
 D = t.TypeVar("D")
@@ -49,13 +50,29 @@ class Encoder(ABC, t.Generic[D]):
 
 
 class DictEncoder(Encoder[dict]):
-    """Encoder for data stored as dictionaries."""
+    """Encoder for data stored as dictionaries.
+
+    FIXME: instead of size and shape, do n_samples and n_features
+    """
 
     @property
     def size(self) -> int:
         return len(self.data)
 
-    def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
+    @property
+    @unstable("DictEncoder.shape may result in unexpected behavior.")
+    def shape(self) -> tuple[int, ...]:
+        """Try and return the shape of the values.
+
+        FIXME: add checks for value types (this should be a typed dict)
+        """
+        first_val = list(self.data.values())[0]
+        if hasattr(first_val, "shape"):
+            return first_val.shape
+        else:
+            raise AttributeError(f"{type(first_val)} has no shape attribute.")
+
+    def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
         """Encode features for the specified IDs."""
         return [self.data[k] for k in ids]
 
@@ -73,13 +90,17 @@ class PandasEncoder(Encoder[pd.DataFrame]):
     def size(self) -> int:
         return self.data.shape[0]
 
-    def encode(self, ids: t.Iterable[t.Any]) -> pd.DataFrame:
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self.data.shape
+
+    def encode(self, ids: t.Iterable[t.Any]) -> np.ndarray:
         """Returns a dataframe of encoded values."""
-        return self.data.loc[ids]
+        return self.data.loc[ids].to_numpy()
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Returns features as a `tf.data.Dataset` object."""
-        arr = self.encode(ids).to_numpy()
+        arr = self.encode(ids)
         return tf.data.Dataset.from_tensor_slices(arr, name=self.name)
 
     @classmethod

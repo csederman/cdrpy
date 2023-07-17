@@ -130,8 +130,9 @@ def load_cell_features(
     assert np.allclose(ppi_adj, ppi_adj.T)
 
     ppi_adj_norm = normalize_adj(ppi_adj).astype("float32")
+    # ppi_adj_norm = tf.sparse.from_dense(ppi_adj_norm)
 
     return (
         DictEncoder(omics_dict, name="omics_encoder"),
-        RepeatEncoder(tf.sparse.from_dense(ppi_adj_norm), name="ppi_encoder"),
+        RepeatEncoder(ppi_adj_norm, name="ppi_encoder"),
     )
