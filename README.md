@@ -4,7 +4,9 @@ Suite of tools for cancer drug response prediction.
 
 ## Setup and Installation
 
-### GPU Setup
+### Linux
+
+#### GPU Setup
 
 ```{shell}
 conda create python=3.9.13 --name=cdrpy-tf-gpu
@@ -19,7 +21,7 @@ pip install tensorflow==2.10.0
 pip install tensorflow-probability==0.18.0
 ```
 
-### CPU Setup
+#### CPU Setup
 
 Create a conda environments:
 
@@ -27,10 +29,22 @@ Create a conda environments:
 conda create python=3.9.13 --name=cdrpy-tf-cpu
 ```
 
+### MacOS
+
+```{shell}
+conda create --name cdrpy-tf python=3.9.13
+
+conda activate cdrpy-tf
+
+python -m pip install tensorflow
+
+python -m pip install tensorflow-metal
+```
+
 ## Usage
 
 - Currently, scripts must be run from root directory
-  
+
 For GPU usage:
 
 ```{shell}
