@@ -41,6 +41,10 @@ class Encoder(ABC, t.Generic[D]):
         pass
 
     @abstractmethod
+    def get(self, id_: t.Any) -> t.Any:
+        pas
+
+    @abstractmethod
     def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
         pass
 
@@ -72,6 +76,10 @@ class DictEncoder(Encoder[dict]):
         else:
             raise AttributeError(f"{type(first_val)} has no shape attribute.")
 
+    def get(self, id_: t.Any) -> t.Any:
+        """Gets a single encoding."""
+        return self.data[id_]
+
     def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
         """Encode features for the specified IDs."""
         return [self.data[k] for k in ids]
@@ -94,9 +102,13 @@ class PandasEncoder(Encoder[pd.DataFrame]):
     def shape(self) -> tuple[int, int]:
         return self.data.shape
 
-    def encode(self, ids: t.Iterable[t.Any]) -> np.ndarray:
+    def get(self, id_: t.Any) -> np.ndarray:
+        """Gets a single encoding."""
+        return self.data.loc[id_].values
+
+    def encode(self, ids: t.Iterable[t.Any]) -> list[np.ndarray]:
         """Returns a dataframe of encoded values."""
-        return self.data.loc[ids].to_numpy()
+        return list(self.data.loc[ids].to_numpy())
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Returns features as a `tf.data.Dataset` object."""
@@ -120,10 +132,20 @@ class RepeatEncoder(Encoder[t.Any]):
     """Convenience class for encoding repeated values."""
 
     @property
+    def shape(self) -> tuple[int, ...]:
+        if hasattr(self.data, "shape"):
+            return self.data.shape
+        else:
+            raise AttributeError(f"{type(self.data)} has no shape attribute.")
+
+    @property
     def size(self) -> int:
         return 1
 
-    def encode(self, ids: t.Iterable[t.Any]) -> t.Any:
+    def get(self, id_: t.Any) -> t.Any:
+        return self.data
+
+    def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
         return [self.data for _ in range(len(ids))]
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:

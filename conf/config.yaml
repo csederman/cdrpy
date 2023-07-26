@@ -1,16 +1,20 @@
 hydra:
   run:
-    dir: data/outputs/${model.name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    dir: data/outputs/${dataset.name}/${model.name}/runs/${now:%Y-%m-%d}_${now:%H-%M-%S}
   job:
-    chdir: false
+    chdir: true
   sweep:
-    dir: data/outputs/${model.name}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
-    subdir: ${hydra:job.num}
+    dir: data/outputs/${dataset.name}/${model.name}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
+    subdir: ${dataset.split.name}/${dataset.preprocess.norm}_norm/fold_${dataset.split.id}
+  sweeper:
+    params:
+      dataset.split.id: 1,2,3,4,5,6,7,8,9,10
+      dataset.split.name: mixed,tumor_blind
+      dataset.preprocess.norm: global,grouped
 defaults:
+  - dataset: GDSCv2DepMap
+  - model: DualGCN
   - _self_
-  - dataset: gdsc_cell_line
-  - model: screendl
 output:
-  log_dir: ${hydra:run.dir}/logs
-  out_dir: ${hydra:run.dir}/results
-  save_model: true
+  log: logs
+  

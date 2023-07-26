@@ -1,0 +1,18 @@
+name: GDSCv2DepMap
+dir: "${hydra:runtime.cwd}/data/inputs/GDSCv2DepMap"
+split:
+  dir: "${dataset.dir}/splits"
+  name: "tumor_blind"
+  id: 1
+sources:
+  labels: "${dataset.dir}/LabelsLogIC50.csv"
+  dualgcn:
+    exp: "${dataset.dir}/DualGCN/FeatureCellToExpression689DualGCNGenesTPMLogp1.csv"
+    cnv: "${dataset.dir}/DualGCN/FeatureCellToCopyNumber689DualGCNGenesCNRatioLogp1.csv"
+    mol: "${dataset.dir}/DrugToConvMolFeatures.pickle"
+    ppi: "${dataset.dir}/DualGCN/MetadataPPIEdgeList.csv"
+  screendl:
+    exp: "${dataset.dir}/ScreenDL/FeatureCellToExpression1771MCGGenesTPMLogp1.csv"
+    mol: "${dataset.dir}/DrugToMorganFingerprint1024Bit.csv"
+preprocess:
+  norm: "global"

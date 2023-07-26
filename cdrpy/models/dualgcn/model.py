@@ -13,7 +13,7 @@ from keras import layers
 from cdrpy.layers.graph import GraphConvBlock
 
 
-def _create_cell_channel(
+def _create_cell_subnetwork(
     cell_dim: int, cell_norm: layers.Normalization | None = None
 ) -> keras.Model:
     """"""
@@ -47,7 +47,7 @@ def _create_cell_channel(
     return cell_model
 
 
-def _create_drug_channel(drug_dim: int) -> keras.Model:
+def _create_drug_subnetwork(drug_dim: int) -> keras.Model:
     """"""
     drug_feat_input = keras.Input(
         shape=(None, drug_dim), name="drug_feat_input"
@@ -56,7 +56,7 @@ def _create_drug_channel(drug_dim: int) -> keras.Model:
 
     x = [drug_feat_input, drug_adj_input]
     x = GraphConvBlock(units=256, step_num=1, name="drug_gc1")(x)
-    x = [drug_feat_input, drug_adj_input]
+    x = [x, drug_adj_input]
     x = GraphConvBlock(units=128, step_num=1, name="drug_gc2")(x)
     x = layers.GlobalAveragePooling1D(name="drug_pool")(x)
 
@@ -73,13 +73,13 @@ def create_model(
     cell_dim: int, drug_dim: int, cell_norm: layers.Normalization | None = None
 ) -> keras.Model:
     """"""
-    cell_model = _create_cell_channel(cell_dim, cell_norm)
-    drug_model = _create_drug_channel(drug_dim)
+    cell_subnetwork = _create_cell_subnetwork(cell_dim, cell_norm)
+    drug_subnetwork = _create_drug_subnetwork(drug_dim)
 
-    channel_inputs = [*cell_model.input, *drug_model.input]
-    channel_outputs = [cell_model.output, drug_model.output]
+    subnetwork_inputs = [*cell_subnetwork.input, *drug_subnetwork.input]
+    subnetwork_outputs = [cell_subnetwork.output, drug_subnetwork.output]
 
-    x = layers.Concatenate(name="concat")(channel_outputs)
+    x = layers.Concatenate(name="concat")(subnetwork_outputs)
     x = layers.Dense(256, activation="tanh")(x)
     x = layers.Dropout(0.3)(x)
     x = layers.Dense(128, activation="tanh")(x)
@@ -87,6 +87,8 @@ def create_model(
     x = layers.Dense(10, activation="tanh")(x)
     output = layers.Dense(1, name="output")(x)
 
-    model = keras.Model(inputs=channel_inputs, outputs=output, name="dualgcn")
+    model = keras.Model(
+        inputs=subnetwork_inputs, outputs=output, name="DualGCN"
+    )
 
     return model

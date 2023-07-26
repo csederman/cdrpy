@@ -24,3 +24,33 @@ def unstable(*warning_args, **warning_kwargs):
         return t.cast(wrapper, functools.update_wrapper(wrapper, func))
 
     return decorator
+
+
+class CDRPYException(Exception):
+    """Base class for catching all cdrpy exceptions."""
+
+
+class MissingEncoderException(CDRPYException):
+    def __init__(self, msg: str) -> None:
+        self.msg = msg
+
+
+def check_encoders(func: F) -> F:
+    """Require dataset encoders."""
+
+    def wrapper(self, *args, **kwargs) -> R:
+        if self.cell_encoders is None or not self.cell_encoders:
+            raise MissingEncoderException(
+                "{} instance does not have any registered cell encoders".format(
+                    self.__class__.name
+                )
+            )
+        if self.drug_encoders is None or not self.drug_encoders:
+            raise MissingEncoderException(
+                "{} instance does not have any registered drug encoders".format(
+                    self.__class__.name
+                )
+            )
+        return func(self, *args, **kwargs)
+
+    return t.cast(wrapper, functools.update_wrapper(wrapper, func))

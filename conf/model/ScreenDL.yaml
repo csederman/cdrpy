@@ -1,0 +1,7 @@
+name: ScreenDL
+batch_size: 32
+epochs: 40
+learning_rate: 0.0001
+early_stopping: true
+tensorboard: false
+save: false
