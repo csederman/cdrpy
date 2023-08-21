@@ -1,7 +1,20 @@
 name: ScreenDL
-batch_size: 32
-epochs: 40
-learning_rate: 0.0001
-early_stopping: true
-tensorboard: false
-save: false
+hyper:
+  batch_size: 32
+  epochs: 40
+  learning_rate: 0.0001
+  early_stopping: true
+  dropout_rate: 0.1
+  use_dropout: true
+  use_batch_norm: true
+  hidden_dims:
+    exp: null
+    mut: null
+    cnv: null
+    mol: null
+feat:
+  use_mut: false
+  use_cnv: false
+io:
+  save: true
+  tensorboard: false

@@ -1,7 +1,9 @@
 name: DualGCN
-batch_size: 32
-epochs: 40
-learning_rate: 0.001
-early_stopping: true
-tensorboard: false
-save: false
+hyper:
+  batch_size: 32
+  epochs: 40
+  learning_rate: 0.001
+  early_stopping: true
+io:
+  save: false
+  tensorboard: false

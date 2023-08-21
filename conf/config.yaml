@@ -9,11 +9,9 @@ hydra:
   sweeper:
     params:
       dataset.split.id: 1,2,3,4,5,6,7,8,9,10
-      dataset.split.name: mixed,tumor_blind
-      dataset.preprocess.norm: global,grouped
 defaults:
   - dataset: GDSCv2DepMap
-  - model: DualGCN
+  - model: ScreenDL
   - _self_
 output:
   log: logs

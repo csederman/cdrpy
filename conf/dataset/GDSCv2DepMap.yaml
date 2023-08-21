@@ -13,6 +13,14 @@ sources:
     ppi: "${dataset.dir}/DualGCN/MetadataPPIEdgeList.csv"
   screendl:
     exp: "${dataset.dir}/ScreenDL/FeatureCellToExpression1771MCGGenesTPMLogp1.csv"
+    mut: "${dataset.dir}/ScreenDL/FeatureCellToSomaticMutationsTypeEncoded272CGCFeatures.csv"
+    cnv: "${dataset.dir}/ScreenDL/FeatureCellToCopyNumber719CGCGenesCNRatioLogp1"
     mol: "${dataset.dir}/DrugToMorganFingerprint1024Bit.csv"
+  deepcdr:
+    exp: "${dataset.dir}/DeepCDR/FeatureCellToExpression717CGCGenesTPMLogp1.csv"
+    mut: "${dataset.dir}/DeepCDR/FeatureCellToSomaticMutationsPositionEncoded716CGCGenesAll.csv"
+    mol: "${dataset.dir}/DrugToConvMolFeatures.pickle"
 preprocess:
-  norm: "global"
+  norm: "grouped"
+output:
+  save: true
