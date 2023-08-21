@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import yaml
+
 import numpy as np
 import pandas as pd
 import typing as t
@@ -11,12 +13,14 @@ import typing as t
 import tensorflow as tf
 
 from dataclasses import dataclass
+from pathlib import Path
 from tensorflow import keras
 
 from cdrpy.util.decorators import check_encoders
 
 if t.TYPE_CHECKING:
     from cdrpy.feat.encoders import Encoder
+    from cdrpy.types import PathLike
 
 
 EncodedDataset = tuple[t.Any, np.ndarray]
@@ -75,13 +79,13 @@ class Dataset:
         self.drug_encoders = drug_encoders
 
     @check_encoders
-    def encode_generator(
+    def _generator(
         self, return_ids: bool = False, as_numpy: bool = False
     ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
         """"""
         for _, row in self.obs.iterrows():
-            cell_id = [row["cell_id"]]
-            drug_id = [row["drug_id"]]
+            cell_id = row["cell_id"]
+            drug_id = row["drug_id"]
 
             cell_feat = [e.get(cell_id) for e in self.cell_encoders]
             drug_feat = [e.get(drug_id) for e in self.drug_encoders]
@@ -126,27 +130,24 @@ class Dataset:
             )
 
     @check_encoders
-    def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
+    def encode_tf_legacy(self, return_ids: bool = False) -> tf.data.Dataset:
         """"""
         return encode_tf(
             self.obs, self.cell_encoders, self.drug_encoders, return_ids
         )
 
     @check_encoders
-    def encode_tf_v2(self, return_ids: bool = False) -> tf.data.Dataset:
+    def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
         """"""
-        # NOTE: encode using a generator - requires shape inference
+        encoders: list[Encoder] = self.cell_encoders + self.drug_encoders
+        get_tspec = lambda e: tf.TensorSpec(
+            e.shape, tf.as_dtype(e.dtype), e.name
+        )
         return tf.data.Dataset.from_generator(
-            self.encode_generator,
-            # FIXME: need to infer shapes for the output signature here
+            self._generator,
             output_signature=(
-                (
-                    (
-                        tf.TensorSpec(shape=(1771,), dtype=tf.float32),
-                        tf.TensorSpec(shape=(1024,), dtype=tf.int32),
-                    ),
-                    tf.TensorSpec(shape=(), dtype=tf.float32),
-                )
+                tuple((get_tspec(e) for e in encoders)),
+                tf.TensorSpec(shape=(), dtype=tf.float32, name="label"),
             ),
         )
 
@@ -169,11 +170,78 @@ class Dataset:
         """Shuffle the drug response observations."""
         self.obs = self.obs.sample(frac=1, random_state=random_state)
 
+    def get_config(self) -> dict:
+        """"""
+        config = {
+            "name": self.name,
+            "desc": self.desc,
+            "class": self.__class__.__name__,
+        }
+        config["cell_encoders"] = [e.get_config() for e in self.cell_encoders]
+        config["drug_encoders"] = [e.get_config() for e in self.drug_encoders]
+        return config
+
     @classmethod
     def from_csv(cls, file_path: str, **kwargs) -> Dataset:
         """"""
         df = pd.read_csv(file_path, dtype={"label": np.float32})
         return cls(df, **kwargs)
+
+    def save(self, dir_: PathLike | Path) -> None:
+        """Saves the dataset configuration and data."""
+        dir_ = Path(dir_)  # FIXME: this might not work for some pathlikes
+        ds_conf = self.get_config()
+        self.obs.to_pickle(dir_ / "obs.pickle")
+
+        items = zip(self.cell_encoders, ds_conf["cell_encoders"])
+        for i, (enc, enc_conf) in enumerate(items, 1):
+            enc_conf["source"] = f"cell_{i}.pickle"
+            enc.to_pickle(dir_ / enc_conf["source"])
+
+        items = zip(self.drug_encoders, ds_conf["drug_encoders"])
+        for i, (enc, enc_conf) in enumerate(items, 1):
+            enc_conf["source"] = f"drug_{i}.pickle"
+            enc.to_pickle(dir_ / enc_conf["source"])
+
+        with open(dir_ / "config.yaml", "w") as fh:
+            yaml.dump(ds_conf, fh, sort_keys=False)
+
+    @classmethod
+    def load(cls, dir_: PathLike | Path) -> Dataset:
+        """Loads a saved dataset."""
+        import importlib
+
+        module = importlib.import_module("cdrpy.feat.encoders")
+
+        dir_ = Path(dir_)  # FIXME: may not work for all pathlikes
+
+        obs = pd.read_pickle(dir_ / "obs.pickle")
+        with open(dir_ / "config.yaml", "rb") as fh:
+            ds_conf = yaml.safe_load(fh)
+
+        cell_encoders = []
+        for enc_conf in ds_conf["cell_encoders"]:
+            class_ = getattr(module, enc_conf["class"])
+            enc = class_.from_pickle(
+                dir_ / enc_conf["source"], name=enc_conf["name"]
+            )
+            cell_encoders.append(enc)
+
+        drug_encoders = []
+        for enc_conf in ds_conf["drug_encoders"]:
+            class_ = getattr(module, enc_conf["class"])
+            enc = class_.from_pickle(
+                dir_ / enc_conf["source"], name=enc_conf["name"]
+            )
+            drug_encoders.append(enc)
+
+        return cls(
+            obs,
+            name=ds_conf["name"],
+            desc=ds_conf["desc"],
+            cell_encoders=cell_encoders,
+            drug_encoders=drug_encoders,
+        )
 
 
 def _extract_column_values(df: pd.DataFrame) -> tuple[np.ndarray, 3]:

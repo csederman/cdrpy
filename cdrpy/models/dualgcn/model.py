@@ -24,24 +24,20 @@ def _create_cell_subnetwork(
 
     if cell_norm is not None:
         cell_feat_input = cell_norm(cell_feat_input)
-    x = layers.Dense(32, activation="tanh", name="cell_dense1")(
-        cell_feat_input
-    )
-    x = layers.Dropout(0.1, name="cell_dense1_dropout")(x)
-    x = layers.Dense(128, activation="tanh", name="cell_dense2")(x)
-    x = layers.Dropout(0.1, name="cell_dense2_dropout")(x)
+    x = layers.Dense(32, activation="tanh", name="cell_dn_1")(cell_feat_input)
+    x = layers.Dropout(0.1, name="cell_dr_1")(x)
+    x = layers.Dense(128, activation="tanh", name="cell_dn_2")(x)
+    x = layers.Dropout(0.1, name="cell_dr_2")(x)
 
-    x = GraphConvBlock(256, step_num=1, name="cell_gc1")([x, cell_adj_input])
-    x = GraphConvBlock(256, step_num=1, name="cell_gc2")([x, cell_adj_input])
-    x = GraphConvBlock(256, step_num=1, name="cell_gc3")([x, cell_adj_input])
-    x = GraphConvBlock(256, step_num=1, name="cell_gc4")([x, cell_adj_input])
+    x = GraphConvBlock(256, step_num=1, name="cell_gc_1")([x, cell_adj_input])
+    x = GraphConvBlock(256, step_num=1, name="cell_gc_2")([x, cell_adj_input])
+    x = GraphConvBlock(256, step_num=1, name="cell_gc_3")([x, cell_adj_input])
+    x = GraphConvBlock(256, step_num=1, name="cell_gc_4")([x, cell_adj_input])
 
-    x = layers.GlobalAveragePooling1D(name="cell_pool")(x)
+    x = layers.GlobalAveragePooling1D(name="cell_gap_1")(x)
 
     cell_model = keras.Model(
-        inputs=[cell_feat_input, cell_adj_input],
-        outputs=x,
-        name="cell_gcn",
+        inputs=[cell_feat_input, cell_adj_input], outputs=x, name="cell_subnet"
     )
 
     return cell_model
@@ -55,15 +51,13 @@ def _create_drug_subnetwork(drug_dim: int) -> keras.Model:
     drug_adj_input = keras.Input(shape=(None, None), name="drug_adj_input")
 
     x = [drug_feat_input, drug_adj_input]
-    x = GraphConvBlock(units=256, step_num=1, name="drug_gc1")(x)
+    x = GraphConvBlock(units=256, step_num=1, name="drug_gc_1")(x)
     x = [x, drug_adj_input]
-    x = GraphConvBlock(units=128, step_num=1, name="drug_gc2")(x)
+    x = GraphConvBlock(units=128, step_num=1, name="drug_gc_2")(x)
     x = layers.GlobalAveragePooling1D(name="drug_pool")(x)
 
     drug_model = keras.Model(
-        inputs=[drug_feat_input, drug_adj_input],
-        outputs=x,
-        name="drug_gcn",
+        inputs=[drug_feat_input, drug_adj_input], outputs=x, name="drug_subnet"
     )
 
     return drug_model

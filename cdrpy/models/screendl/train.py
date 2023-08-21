@@ -54,6 +54,7 @@ def train(
     callbacks = []
 
     if early_stopping:
+        # FIXME: do we want to restore best weights?
         callbacks.append(
             keras.callbacks.EarlyStopping(
                 "val_loss",
@@ -74,8 +75,16 @@ def train(
             keras.callbacks.TensorBoard(log_dir, histogram_freq=1)
         )
 
-    train_tfds = train_ds.encode_tf().shuffle(10000).batch(batch_size)
-    val_tfds = val_ds.encode_tf().shuffle(10000).batch(batch_size)
+    train_tfds = (
+        train_ds.encode_tf()
+        .shuffle(10000, reshuffle_each_iteration=True)
+        .batch(batch_size)
+    )
+    val_tfds = (
+        val_ds.encode_tf()
+        .shuffle(10000, reshuffle_each_iteration=True)
+        .batch(batch_size)
+    )
 
     model.compile(
         optimizer=opt,

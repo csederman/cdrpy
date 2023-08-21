@@ -4,12 +4,9 @@ DualGCN data loading utilities.
 
 from __future__ import annotations
 
-import typing as t
-
 import networkx as nx
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 from pathlib import Path
 
@@ -64,10 +61,10 @@ def _process_drug_feature(
 
 
 def load_drug_features(
-    file_path: PathLike | Path,
+    mol_path: PathLike | Path,
 ) -> tuple[DictEncoder, DictEncoder]:
     """Load drug chemical features."""
-    drug_dict = read_pickled_dict(file_path)
+    drug_dict = read_pickled_dict(mol_path)
     drug_dict = {
         k: _process_drug_feature(F, A) for k, (F, _, A) in drug_dict.items()
     }

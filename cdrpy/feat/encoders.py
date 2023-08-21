@@ -4,6 +4,8 @@ Feature encoders.
 
 from __future__ import annotations
 
+import pickle
+
 import numpy as np
 import pandas as pd
 import typing as t
@@ -42,7 +44,7 @@ class Encoder(ABC, t.Generic[D]):
 
     @abstractmethod
     def get(self, id_: t.Any) -> t.Any:
-        pas
+        pass
 
     @abstractmethod
     def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
@@ -52,16 +54,42 @@ class Encoder(ABC, t.Generic[D]):
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         pass
 
+    def to_pickle(self, file_path: PathLike | Path) -> None:
+        """Save encoder data as pickle object."""
+        with open(file_path, "wb") as fh:
+            pickle.dump(self.data, fh)
+
+    @classmethod
+    def from_pickle(
+        cls, file_path: PathLike | Path, name: str | None = None
+    ) -> Encoder:
+        """Load encoder from pickle file."""
+        with open(file_path, "rb") as fh:
+            data = pickle.load(fh)
+        return cls(data, name=name)
+
+    def get_config(self) -> dict[str, t.Any]:
+        """Get encoder configuration."""
+        return {"name": self.name, "class": self.__class__.__name__}
+
 
 class DictEncoder(Encoder[dict]):
-    """Encoder for data stored as dictionaries.
-
-    FIXME: instead of size and shape, do n_samples and n_features
-    """
+    """Encoder for data stored as dictionaries."""
 
     @property
     def size(self) -> int:
         return len(self.data)
+
+    @property
+    def dtype(self) -> t.Any:
+        """Try and return the datatype."""
+        # FIXME: I should add the option to pass these in during the init
+        #   and only infer them if they are not set.
+        first_val = list(self.data.values())[0]
+        if hasattr(first_val, "dtype"):
+            return first_val.dtype
+        else:
+            raise AttributeError(f"{type(first_val)} has no dtype attribute.")
 
     @property
     @unstable("DictEncoder.shape may result in unexpected behavior.")
@@ -95,12 +123,16 @@ class PandasEncoder(Encoder[pd.DataFrame]):
     """Encoder for data stored as `pd.DataFrame` objects."""
 
     @property
+    def dtype(self) -> t.Any:
+        return self.data.values.dtype
+
+    @property
     def size(self) -> int:
         return self.data.shape[0]
 
     @property
-    def shape(self) -> tuple[int, int]:
-        return self.data.shape
+    def shape(self) -> tuple[int]:
+        return self.data.shape[1:]
 
     def get(self, id_: t.Any) -> np.ndarray:
         """Gets a single encoding."""
@@ -108,7 +140,7 @@ class PandasEncoder(Encoder[pd.DataFrame]):
 
     def encode(self, ids: t.Iterable[t.Any]) -> list[np.ndarray]:
         """Returns a dataframe of encoded values."""
-        return list(self.data.loc[ids].to_numpy())
+        return list(self.data.loc[ids].values)
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Returns features as a `tf.data.Dataset` object."""
@@ -127,9 +159,31 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         df = pd.read_csv(file_path, index_col=index_col, **kwargs)
         return cls(df, name=name)
 
+    def to_pickle(self, file_path: PathLike | Path, **kwargs) -> None:
+        """Save encoder data as pickle object."""
+        self.data.to_pickle(file_path, **kwargs)
+
+    @classmethod
+    def from_pickle(
+        cls, file_path: PathLike | Path, name: str | None = None, **kwargs
+    ) -> None:
+        """Load encoder from pickle file."""
+        df = pd.read_pickle(file_path, **kwargs)
+        return cls(df, name=name)
+
 
 class RepeatEncoder(Encoder[t.Any]):
     """Convenience class for encoding repeated values."""
+
+    @property
+    def dtype(self) -> t.Any:
+        """Try and return the datatype."""
+        # FIXME: I should add the option to pass these in during the init
+        #   and only infer them if they are not set.
+        if hasattr(self.data, "dtype"):
+            return self.data.dtype
+        else:
+            raise AttributeError(f"{type(self.data)} has no dtype attribute.")
 
     @property
     def shape(self) -> tuple[int, ...]:

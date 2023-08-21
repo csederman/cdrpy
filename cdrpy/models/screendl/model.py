@@ -4,187 +4,304 @@
 
 from __future__ import annotations
 
-import typing as t
 import tensorflow as tf
 
-keras = tf.keras  # pylance issue #1066
-
+from tensorflow import keras
 from keras import Model
-from keras import layers, losses, optimizers
+from keras import layers
 
-from cdrpy.data._datasets import Dataset
-from cdrpy.data.types import EncodedDataset, EncodedFeatures
+
+def _create_expression_subnetwork(
+    dim: int,
+    norm_layer: layers.Normalization | None = None,
+    hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
+) -> keras.Model:
+    """Creates the expression subnetwork."""
+    x = input_layer = layers.Input((dim,), name="exp_input")
+
+    if norm_layer is not None:
+        if not norm_layer.is_adapted:
+            # FIXME: change this to a warning since you can still adapt later
+            # FIXME: this needs to be decoupled from model creation - I need to
+            #   refactor the models so normalization occurs during data
+            #   preprocessing.
+            raise ValueError("requires adapted normalization layer...")
+        x = norm_layer(x)
+
+    if hidden_dims is None:
+        # FIXME: Decide where I want batch normalization and dropout
+        #   -> Before or after the first dense layer?
+        #   -> I might want it before if I don't include the initial dense layer
+        #      with the same dim as the input because then it would drop out
+        #      random gene inputs during uncertainty quantification which might
+        #      be a desired property.
+        # hidden_dims = [dim, dim // 2, dim // 4, dim // 8]
+        hidden_dims = [dim // 2, dim // 4, dim // 8]
+
+    n_hidden = len(hidden_dims)
+    for i, units in enumerate(hidden_dims, 1):
+        # NOTE: use tanh activation for the embedding output
+        act = "tanh" if i == n_hidden else "relu"
+        x = layers.Dense(units, activation=act, name=f"exp_dn_{i}")(x)
+        if use_batch_norm:
+            x = layers.BatchNormalization(name=f"exp_bn_{i}")(x)
+        if use_dropout:
+            x = layers.Dropout(dropout_rate, name=f"exp_dr_{i}")(x)
+
+    return Model(inputs=input_layer, outputs=x, name="exp_subnet")
+
+
+def _create_mutation_subnetwork(
+    dim: int,
+    hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
+) -> keras.Model:
+    """Creates the mutation subnetwork."""
+    x = input_layer = layers.Input((dim,), name="mut_input")
+
+    if hidden_dims is None:
+        # hidden_dims = [dim, dim // 2, dim // 4, dim // 8]
+        hidden_dims = [dim // 2, dim // 4, dim // 8]
+
+    n_hidden = len(hidden_dims)
+    for i, units in enumerate(hidden_dims, 1):
+        # NOTE: use tanh activation for the embedding output
+        act = "tanh" if i == n_hidden else "relu"
+        x = layers.Dense(units, activation=act, name=f"mut_dn_{i}")(x)
+        if use_batch_norm:
+            x = layers.BatchNormalization(name=f"mut_bn_{i}")(x)
+        if use_dropout:
+            x = layers.Dropout(dropout_rate, name=f"mut_dr_{i}")(x)
+
+    return Model(inputs=input_layer, outputs=x, name="mut_subnet")
+
+
+def _create_copy_number_subnetwork(
+    dim: int,
+    norm_layer: layers.Normalization | None = None,
+    hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
+) -> keras.Model:
+    """Creates the mutation subnetwork."""
+    x = input_layer = layers.Input((dim,), name="cnv_input")
+
+    if norm_layer is not None:
+        if not norm_layer.is_adapted:
+            # FIXME: change this to a warning since you can still adapt later
+            # FIXME: this needs to be decoupled from model creation - I need to
+            #   refactor the models so normalization occurs during data
+            #   preprocessing.
+            raise ValueError("requires adapted normalization layer...")
+        x = norm_layer(x)
+
+    if hidden_dims is None:
+        # hidden_dims = [dim, dim // 2, dim // 4, dim // 8]
+        hidden_dims = [dim // 2, dim // 4, dim // 8]
+
+    n_hidden = len(hidden_dims)
+    for i, units in enumerate(hidden_dims, 1):
+        # NOTE: Use tanh activation for the embedding output
+        act = "tanh" if i == n_hidden else "relu"
+        x = layers.Dense(units, activation=act, name=f"cnv_dn_{i}")(x)
+        # FIXME: make sure batch norm should come before dropout
+        if use_batch_norm:
+            x = layers.BatchNormalization(name=f"cnv_bn_{i}")(x)
+        if use_dropout:
+            x = layers.Dropout(dropout_rate, name=f"cnv_dr_{i}")(x)
+
+    return Model(inputs=input_layer, outputs=x, name="cnv_subnet")
 
 
 def _create_cell_subnetwork(
-    exp_dim: int, exp_norm: layers.Normalization | None = None
+    exp_dim: int,
+    mut_dim: int | None = None,
+    cnv_dim: int | None = None,
+    exp_norm_layer: layers.Normalization | None = None,
+    cnv_norm_layer: layers.Normalization | None = None,
+    exp_hidden_dims: list[int] | None = None,
+    mut_hidden_dims: list[int] | None = None,
+    cnv_hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
 ) -> keras.Model:
-    """"""
-    exp_input = layers.Input((exp_dim,), name="exp_input")
-    if exp_norm is not None:
-        if not exp_norm.is_adapted:
-            # FIXME: change this to a warning since you can still adapt later
-            raise ValueError("requires adapted normalization layer...")
-        exp_input = exp_norm(exp_input)
-    x = layers.GaussianNoise(0.1, name="exp_noise_1")(exp_input)
-    x = layers.Dense(exp_dim, "relu", name="exp_dense_1")(x)
-    x = layers.BatchNormalization(name="exp_bnorm_1")(x)
-    x = layers.Dense(int(exp_dim / 2), "relu", name="exp_dense_2")(x)
-    x = layers.BatchNormalization(name="exp_bnorm_2")(x)
-    x = layers.Dense(int(exp_dim / 4), "relu", name="exp_dense_3")(x)
-    x = layers.BatchNormalization(name="exp_bnorm_3")(x)
-    x = layers.Dense(int(exp_dim / 8), "relu", name="exp_dense_4")(x)
-    x = layers.BatchNormalization(name="exp_bnorm_4")(x)
+    """Creates the cell subnetwork.
 
-    model = keras.Model(inputs=exp_input, outputs=x, name="cell_subnet")
+    Parameters
+    ----------
+        exp_dim: The dimension of the gene expression subnetwork.
+        mut_dim: The dimension of the mutation subnetwork.
+        cnv_dim: The dimension of the copy number subnetwork.
+        exp_norm_layer: An optional `keras.layers.Normalization` layer.
+        cnv_norm_layer: An optional `keras.layers.Normalization` layer.
+        exp_hidden_dims: An optional list specifying hidden layers/units for
+            the gene expression subnetwork.
+        mut_hidden_dims: An optional list specifying hidden layers/units for
+            the mutation subnetwork.
+        cnv_hidden_dims: An optional list specifying hidden layers/units for
+            the copy number subnetwork.
+        use_batch_norm: Whether or not to use batch normalization.
+        use_dropout: Whether or not to use dropout.
+        dropout_rate: The dropout rate. Ignored if `use_dropout` is `False`.
 
-    return model
+    Returns
+    -------
+        The drug subnetwork `keras.Model` instance.
+    """
+    exp_subnet = _create_expression_subnetwork(
+        exp_dim,
+        exp_norm_layer,
+        exp_hidden_dims,
+        use_batch_norm=use_batch_norm,
+        use_dropout=use_dropout,
+        dropout_rate=dropout_rate,
+    )
+    subnet_inputs = [exp_subnet.input]
+    subnet_output = exp_subnet.output
 
+    if mut_dim is not None:
+        mut_subnet = _create_mutation_subnetwork(
+            mut_dim,
+            mut_hidden_dims,
+            use_batch_norm=use_batch_norm,
+            use_dropout=use_dropout,
+            dropout_rate=dropout_rate,
+        )
+        subnet_inputs.append(mut_subnet.input)
+        subnet_output = layers.Concatenate()(
+            [subnet_output, mut_subnet.output]
+        )
 
-# def _build_dna_model(dim: int) -> keras.Sequential:
-#     """"""
-#     model = keras.Sequential(
-#         [
-#             layers.Input((dim,), name="dna_input"),
-#             layers.Dense(dim, "relu", name="dna_dense_1"),
-#             layers.BatchNormalization(name="dna_bnorm_1"),
-#             layers.Dense(int(dim / 2), "relu", name="dna_dense_2"),
-#             layers.BatchNormalization(name="dna_bnorm_2"),
-#             layers.Dense(int(dim / 4), "relu", name="dna_dense_3"),
-#             layers.BatchNormalization(name="dna_bnorm_3"),
-#             layers.Dense(int(dim / 8), "relu", name="dna_dense_4"),
-#             layers.BatchNormalization(name="dna_bnorm_4"),
-#         ]
-#     )
+    if cnv_dim is not None:
+        cnv_subnet = _create_copy_number_subnetwork(
+            cnv_dim,
+            cnv_norm_layer,
+            cnv_hidden_dims,
+            use_batch_norm=use_batch_norm,
+            use_dropout=use_dropout,
+            dropout_rate=dropout_rate,
+        )
+        subnet_inputs.append(cnv_subnet.input)
+        subnet_output = layers.Concatenate()(
+            [subnet_output, cnv_subnet.output]
+        )
 
-#     return model
-
-
-def _create_drug_subnetwork(drug_dim: int) -> keras.Sequential:
-    """"""
-
-    # NOTE: Ideker DrugCell dims (except for first dense layer I think)
-    model = keras.Sequential(
-        [
-            layers.Input((drug_dim,), name="fp_input"),
-            layers.Dense(drug_dim, "relu", name="fp_dense_1"),
-            layers.BatchNormalization(name="fp_bnorm_1"),
-            # layers.Dense(100, "relu", name="fp_dense2"),
-            # layers.Dense(50, "relu", name="fp_dense3"),
-            # layers.Dense(10, "relu", name="fp_dense4"),
-            layers.Dense(int(drug_dim / 2), "relu", name="fp_dense_2"),
-            layers.BatchNormalization(name="fp_bnorm_2"),
-            layers.Dense(int(drug_dim / 4), "relu", name="fp_dense_3"),
-            layers.BatchNormalization(name="fp_bnorm_3"),
-            layers.Dense(int(drug_dim / 8), "relu", name="fp_dense_4"),
-            layers.BatchNormalization(name="fp_bnorm_4"),
-        ],
-        name="drug_subnet",
+    return Model(
+        inputs=subnet_inputs, outputs=subnet_output, name="cell_subnet"
     )
 
-    return model
+
+def _create_drug_subnetwork(
+    mol_dim: int,
+    mol_hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
+) -> keras.Sequential:
+    """Creates the drug subnetwork.
+
+    Parameters
+    ----------
+        mol_dim: The dimension of the drug subnetwork.
+        mol_hidden_dims: Optional list specifying hidden layers/units.
+        use_batch_norm: Whether or not to use batch normalization.
+        use_dropout: Whether or not to use dropout.
+        dropout_rate: The dropout rate. Ignored if `use_dropout` is `False`.
+
+    Returns
+    -------
+        The drug subnetwork `keras.Model` instance.
+    """
+    x = input_layer = layers.Input((mol_dim,), name="fp_input")
+
+    if mol_hidden_dims is None:
+        # mol_hidden_dims = [mol_dim, mol_dim // 2, mol_dim // 4, mol_dim // 8]
+        mol_hidden_dims = [mol_dim // 2, mol_dim // 4, mol_dim // 8]
+
+    n_hidden = len(mol_hidden_dims)
+    for i, units in enumerate(mol_hidden_dims, 1):
+        # NOTE: Use tanh activation for the embedding output
+        act = "tanh" if i == n_hidden else "relu"
+        x = layers.Dense(units, activation=act, name=f"drug_dn_{i}")(x)
+        if use_batch_norm:
+            x = layers.BatchNormalization(name=f"drug_bn_{i}")(x)
+        if use_dropout:
+            x = layers.Dropout(dropout_rate, name=f"drug_dr_{i}")(x)
+
+    return Model(inputs=input_layer, outputs=x, name="drug_subnet")
 
 
 def create_model(
-    cell_dim: int,
-    drug_dim: int,
-    cell_exp_norm: layers.Normalization | None = None,
+    exp_dim: int,
+    mol_dim: int,
+    mut_dim: int | None = None,
+    cnv_dim: int | None = None,
+    exp_norm_layer: layers.Normalization | None = None,
+    cnv_norm_layer: layers.Normalization | None = None,
+    exp_hidden_dims: list[int] | None = None,
+    mut_hidden_dims: list[int] | None = None,
+    cnv_hidden_dims: list[int] | None = None,
+    mol_hidden_dims: list[int] | None = None,
+    use_batch_norm: bool = False,
+    use_dropout: bool = False,
+    dropout_rate: float = 0.1,
 ) -> keras.Model:
     """"""
-    cell_subnet = _create_cell_subnetwork(cell_dim, cell_exp_norm)
-    drug_subnet = _create_drug_subnetwork(drug_dim)
-    subnet_inputs = [cell_subnet.input, drug_subnet.input]
+    cell_subnet = _create_cell_subnetwork(
+        exp_dim,
+        mut_dim,
+        cnv_dim,
+        exp_norm_layer=exp_norm_layer,
+        cnv_norm_layer=cnv_norm_layer,
+        exp_hidden_dims=exp_hidden_dims,
+        mut_hidden_dims=mut_hidden_dims,
+        cnv_hidden_dims=cnv_hidden_dims,
+        use_batch_norm=use_batch_norm,
+        use_dropout=use_dropout,
+        dropout_rate=dropout_rate,
+    )
+
+    drug_subnet = _create_drug_subnetwork(
+        mol_dim,
+        mol_hidden_dims=mol_hidden_dims,
+        use_batch_norm=use_batch_norm,
+        use_dropout=use_dropout,
+        dropout_rate=dropout_rate,
+    )
+
+    if isinstance(cell_subnet.input, list):
+        # FIXME: Should probably not concatenate here and pass the outputs of
+        #   the cell encoders and drug encoders separately.
+        subnet_inputs = [*cell_subnet.input, drug_subnet.input]
+    else:
+        subnet_inputs = [cell_subnet.input, drug_subnet.input]
     subnet_outputs = [cell_subnet.output, drug_subnet.output]
 
-    dim = sum((cell_subnet.output_shape[1], drug_subnet.output_shape[1]))
+    latent_dim = sum(
+        (cell_subnet.output_shape[1], drug_subnet.output_shape[1])
+    )
+    hidden_dims = [
+        latent_dim,
+        latent_dim // 2,
+        latent_dim // 4,
+        latent_dim // 8,
+        latent_dim // 10,
+    ]
 
     x = layers.Concatenate(name="concat")(subnet_outputs)
-    x = layers.Dense(dim, "relu", name="final_dense1")(x)
-    x = layers.BatchNormalization(name="final_bnorm_1")(x)
-    x = layers.Dense(int(dim / 2), "relu", name="final_dense_2")(x)
-    x = layers.BatchNormalization(name="final_bnorm_2")(x)
-    x = layers.Dense(int(dim / 4), "relu", name="final_dense_3")(x)
-    x = layers.BatchNormalization(name="final_bnorm_3")(x)
-    x = layers.Dense(int(dim / 8), "relu", name="final_dense_4")(x)
-    x = layers.BatchNormalization(name="final_bnorm_4")(x)
-    x = layers.Dense(int(dim / 10), "relu", name="final_dense_5")(x)
-    x = layers.BatchNormalization(name="final_bnorm_5")(x)
-    output = layers.Dense(1, "linear", name="final_activation")(x)
+    for i, units in enumerate(hidden_dims, 1):
+        x = layers.Dense(units, activation="relu", name=f"shared_dn_{i}")(x)
+        if use_batch_norm:
+            x = layers.BatchNormalization(name=f"shared_bn_{i}")(x)
+        if use_dropout:
+            x = layers.Dropout(dropout_rate, name=f"shared_dr_{i}")(x)
+    output = layers.Dense(1, "linear", name="final_act")(x)
 
     return Model(inputs=subnet_inputs, outputs=output, name="ScreenDL")
-
-
-# class ScreenDL:
-#     """"""
-
-#     _channel_builders: dict[str, t.Callable[[int], keras.Sequential]] = {
-#         "dna": _build_dna_model,
-#         "rna": _build_rna_model,
-#         "fp": _build_fp_model,
-#     }
-
-#     def __init__(
-#         self,
-#         channel_names: list[str],
-#         channel_dims: list[int],
-#         opt: keras.optimizers.Optimizer,
-#         loss_fn: keras.losses.Loss,
-#         metrics: t.Iterable[keras.metrics.Metric],
-#     ) -> None:
-#         assert len(channel_names) == len(channel_dims)
-#         self._channel_names = channel_names
-#         self._channel_dims = channel_dims
-#         self._opt = opt
-#         self._loss_fn = loss_fn
-#         self._metrics = metrics
-#         self._init_model()
-
-#     @property
-#     def model(self) -> keras.Model:
-#         return self._model
-
-#     @property
-#     def opt(self) -> keras.optimizers.Optimizer:
-#         return self._opt
-
-#     @property
-#     def loss_fn(self) -> keras.losses.Loss:
-#         return self._loss_fn
-
-#     @property
-#     def metrics(self) -> t.Iterable[keras.metrics.Metric]:
-#         return self._metrics
-
-#     def _init_model(self) -> None:
-#         """Initialize the keras model."""
-#         channels = []
-#         for channel_name, dim in zip(self._channel_names, self._channel_dims):
-#             builder = self._channel_builders[channel_name]
-#             channel = builder(dim)
-#             channels.append(channel)
-
-#         self._model = _build_model(channels)
-#         # self._model.compile(optimizer=self.opt, loss=self.loss_fn, )
-
-#     def train_step(self, ds: Dataset, batch_size: int = 32) -> None:
-#         """Perform a single training iteration/epoch."""
-#         batch_generator = ds.encode_batches(["rna"], ["fp"], batch_size)
-#         for step, batch in enumerate(batch_generator):
-#             X, y, *_ = batch
-#             y = y.reshape(-1, 1)
-
-#             with tf.GradientTape() as tape:
-#                 preds = self.model(X, training=True)
-#                 loss_value = self.loss_fn(y, preds)
-
-#             grads = tape.gradient(loss_value, self.model.trainable_weights)
-#             self.opt.apply_gradients(zip(grads, self.model.trainable_weights))
-
-#             for metric in self.metrics:
-#                 metric.update_state(y, preds)
-
-#         for metric in self.metrics:
-#             print(step, metric.name, float(metric.result()))
-#             # if step % 100 == 0:
-#             #     for metric_fn in self.metrics:
-#             #         batch_metric = metric_fn(y, preds)
