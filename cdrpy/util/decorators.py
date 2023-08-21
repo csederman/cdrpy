@@ -39,13 +39,13 @@ def check_encoders(func: F) -> F:
     """Require dataset encoders."""
 
     def wrapper(self, *args, **kwargs) -> R:
-        if self.cell_encoders is None or not self.cell_encoders:
+        if not self.cell_encoders:
             raise MissingEncoderException(
                 "{} instance does not have any registered cell encoders".format(
                     self.__class__.name
                 )
             )
-        if self.drug_encoders is None or not self.drug_encoders:
+        if not self.drug_encoders:
             raise MissingEncoderException(
                 "{} instance does not have any registered drug encoders".format(
                     self.__class__.name

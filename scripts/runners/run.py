@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 PIPELINES = {
     "ScreenDL": "screendl",
     "DualGCN": "dualgcn",
+    "DualGCN-legacy": "dualgcn_legacy",
 }
 
 

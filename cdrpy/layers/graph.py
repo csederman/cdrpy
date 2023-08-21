@@ -13,7 +13,12 @@ from keras import layers
 
 
 class GraphLayer(layers.Layer):
-    """Reimplementation of DualGCN GraphLayer."""
+    """Reimplementation of DualGCN GraphLayer.
+
+    FIXME: The graph should be passed once at runtime and then stored in
+        the graph layer. The layer then validates that the input matches
+        the graph shape.
+    """
 
     def __init__(
         self,
@@ -59,6 +64,10 @@ class GraphLayer(layers.Layer):
 
 
 class GraphConv(GraphLayer):
+    """
+    FIXME: Store edges in init, then get the walked edges from those
+    """
+
     def __init__(
         self,
         units,
@@ -111,6 +120,9 @@ class GraphConv(GraphLayer):
 
     def build(self, input_shape):
         feature_dim = input_shape[0][2]
+        # NOTE: I think this is where I need to validate the input shape
+        #   matches the graph shape
+        print(f"building... {input_shape}")
         self.W = self.add_weight(
             shape=(feature_dim, self.units),
             initializer=self.kernel_initializer,

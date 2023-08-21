@@ -17,7 +17,8 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from cdrpy.types import PathLike
-from cdrpy.util.decorators import unstable
+
+# from cdrpy.util.decorators import unstable
 
 
 D = t.TypeVar("D")
@@ -74,7 +75,11 @@ class Encoder(ABC, t.Generic[D]):
 
 
 class DictEncoder(Encoder[dict]):
-    """Encoder for data stored as dictionaries."""
+    """Encoder for data stored as dictionaries.
+
+    FIXME: Add validation of shape the first time it is accessed and convert
+        into a cached property
+    """
 
     @property
     def size(self) -> int:
@@ -92,17 +97,14 @@ class DictEncoder(Encoder[dict]):
             raise AttributeError(f"{type(first_val)} has no dtype attribute.")
 
     @property
-    @unstable("DictEncoder.shape may result in unexpected behavior.")
     def shape(self) -> tuple[int, ...]:
-        """Try and return the shape of the values.
-
-        FIXME: add checks for value types (this should be a typed dict)
-        """
-        first_val = list(self.data.values())[0]
-        if hasattr(first_val, "shape"):
-            return first_val.shape
-        else:
-            raise AttributeError(f"{type(first_val)} has no shape attribute.")
+        """Try and return the shape of the values."""
+        values = list(self.data.values())
+        first_val = values[0]
+        # assert all(isinstance(val, type(first_val)) for val in values)
+        assert hasattr(first_val, "shape")
+        assert all(val.shape == first_val.shape for val in values)
+        return first_val.shape
 
     def get(self, id_: t.Any) -> t.Any:
         """Gets a single encoding."""

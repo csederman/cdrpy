@@ -36,6 +36,7 @@ class Dataset:
     desc: str | None = None
     cell_encoders: list[Encoder] | None = None
     drug_encoders: list[Encoder] | None = None
+    encode_drugs_first: bool = False
 
     def __post_init__(self) -> None:
         required_cols = ["id", "cell_id", "drug_id", "label"]
@@ -46,6 +47,17 @@ class Dataset:
             f"Dataset(name={self.name}, size={self.size:_}, "
             f"n_cells={self.n_cells:_}, n_drugs={self.n_drugs:_})"
         )
+
+    @property
+    @check_encoders
+    def encoders(self) -> list[Encoder] | None:
+        if self.encode_drugs_first:
+            return self.drug_encoders + self.cell_encoders
+        return self.cell_encoders + self.drug_encoders
+
+    @property
+    def dtype(self) -> tf.dtypes.DType:
+        return tf.as_dtype(self.labels["label"].dtype)
 
     @property
     def labels(self) -> np.ndarray:
@@ -75,6 +87,8 @@ class Dataset:
         self, cell_encoders: list[Encoder], drug_encoders: list[Encoder]
     ) -> None:
         """Registers encoders with the dataset."""
+        # FIXME: add validation of encoders (check all ids in self.obs are in
+        #   the encoder keys)
         self.cell_encoders = cell_encoders
         self.drug_encoders = drug_encoders
 
@@ -109,6 +123,7 @@ class Dataset:
             self.drug_encoders,
             return_ids=return_ids,
             as_numpy=as_numpy,
+            drugs_first=self.encode_drugs_first,
         )
 
     @check_encoders
@@ -133,22 +148,30 @@ class Dataset:
     def encode_tf_legacy(self, return_ids: bool = False) -> tf.data.Dataset:
         """"""
         return encode_tf(
-            self.obs, self.cell_encoders, self.drug_encoders, return_ids
+            self.obs,
+            self.cell_encoders,
+            self.drug_encoders,
+            return_ids,
+            drugs_first=self.encode_drugs_first,
         )
 
     @check_encoders
     def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
         """"""
-        encoders: list[Encoder] = self.cell_encoders + self.drug_encoders
-        get_tspec = lambda e: tf.TensorSpec(
-            e.shape, tf.as_dtype(e.dtype), e.name
-        )
         return tf.data.Dataset.from_generator(
             self._generator,
-            output_signature=(
-                tuple((get_tspec(e) for e in encoders)),
-                tf.TensorSpec(shape=(), dtype=tf.float32, name="label"),
-            ),
+            output_signature=self._infer_tf_output_signature(),
+        )
+
+    def _infer_tf_output_signature(self) -> t.Any:
+        # Add a drugs first option
+        encoders: list[Encoder] = self.encoders
+        get_tensor_spec = lambda enc: tf.TensorSpec(
+            enc.shape, tf.as_dtype(enc.dtype), name=enc.name
+        )
+        return (
+            tuple(get_tensor_spec(enc) for enc in encoders),
+            tf.TensorSpec(shape=(), dtype=tf.float32, name="label"),
         )
 
     def select(self, ids: t.Iterable[str], **kwargs) -> Dataset:
@@ -159,15 +182,16 @@ class Dataset:
             obs,
             cell_encoders=self.cell_encoders,
             drug_encoders=self.drug_encoders,
+            encode_drugs_first=self.encode_drugs_first,
             **kwargs,
         )
 
     def sample(self, n: int, **kwargs) -> Dataset:
-        """Samples a random subset of the dataset."""
+        """Samples a random subset of `n` drug response observations."""
         return self.select(self.obs["id"].sample(n=n), **kwargs)
 
     def shuffle(self, random_state: t.Any = None) -> None:
-        """Shuffle the drug response observations."""
+        """Shuffles the drug response observations."""
         self.obs = self.obs.sample(frac=1, random_state=random_state)
 
     def get_config(self) -> dict:
@@ -258,6 +282,7 @@ def encode(
     drug_encoders: list[Encoder],
     return_ids: bool = False,
     as_numpy: bool = False,
+    drugs_first: bool = False,
 ) -> EncodedDataset | EncodedDatasetWithIds:
     """"""
     cell_ids, drug_ids, labels = _extract_column_values(df)
@@ -269,7 +294,10 @@ def encode(
         cell_feat = tuple(np.array(f) for f in cell_feat)
         drug_feat = tuple(np.array(f) for f in drug_feat)
 
-    features = cell_feat + drug_feat
+    if drugs_first:
+        features = drug_feat + cell_feat
+    else:
+        features = cell_feat + drug_feat
 
     if return_ids:
         return (features, labels, cell_ids, drug_ids)
@@ -281,6 +309,7 @@ def encode_tf(
     cell_encoders: list[Encoder],
     drug_encoders: list[Encoder],
     return_ids: bool = False,
+    drugs_first: bool = False,
 ) -> tf.data.Dataset:
     """"""
     cell_ids, drug_ids, labels = _extract_column_values(df)
@@ -288,7 +317,11 @@ def encode_tf(
     cell_features = [e.encode_tf(cell_ids) for e in cell_encoders]
     drug_features = [e.encode_tf(drug_ids) for e in drug_encoders]
 
-    features = tf.data.Dataset.zip((*cell_features, *drug_features))
+    if drugs_first:
+        features = tf.data.Dataset.zip((*drug_features, *cell_features))
+    else:
+        features = tf.data.Dataset.zip((*cell_features, *drug_features))
+
     labels = tf.data.Dataset.from_tensor_slices(labels)
 
     return tf.data.Dataset.zip((features, labels))

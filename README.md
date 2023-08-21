@@ -2,6 +2,10 @@
 
 Suite of tools for cancer drug response prediction.
 
+## TODO
+
+- [ ] Make tensorflow an optional dependency 
+
 ## Setup and Installation
 
 ### Linux
