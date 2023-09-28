@@ -178,6 +178,7 @@ class Dataset:
         """"""
         # FIXME: do we need this deep copy?
         obs = self.obs[self.obs["id"].isin(ids)].copy(deep=True)
+
         return Dataset(
             obs,
             cell_encoders=self.cell_encoders,
@@ -213,7 +214,9 @@ class Dataset:
 
     def save(self, dir_: PathLike | Path) -> None:
         """Saves the dataset configuration and data."""
-        dir_ = Path(dir_)  # FIXME: this might not work for some pathlikes
+        dir_ = Path(
+            dir_
+        )  # FIXME: this might not work for some path-like objects
         ds_conf = self.get_config()
         self.obs.to_pickle(dir_ / "obs.pickle")
 

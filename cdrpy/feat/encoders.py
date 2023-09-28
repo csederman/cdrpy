@@ -90,7 +90,8 @@ class DictEncoder(Encoder[dict]):
         """Try and return the datatype."""
         # FIXME: I should add the option to pass these in during the init
         #   and only infer them if they are not set.
-        first_val = list(self.data.values())[0]
+        first_key = list(self.data)[0]
+        first_val = self.data[first_key]
         if hasattr(first_val, "dtype"):
             return first_val.dtype
         else:
@@ -99,11 +100,11 @@ class DictEncoder(Encoder[dict]):
     @property
     def shape(self) -> tuple[int, ...]:
         """Try and return the shape of the values."""
-        values = list(self.data.values())
-        first_val = values[0]
+        first_key = list(self.data)[0]
+        first_val = self.data[first_key]
         # assert all(isinstance(val, type(first_val)) for val in values)
         assert hasattr(first_val, "shape")
-        assert all(val.shape == first_val.shape for val in values)
+        assert all(val.shape == first_val.shape for val in self.data.values())
         return first_val.shape
 
     def get(self, id_: t.Any) -> t.Any:

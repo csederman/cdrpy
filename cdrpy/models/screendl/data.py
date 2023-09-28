@@ -16,7 +16,13 @@ def load_cell_features(
     exp_path: PathLike | Path,
     mut_path: PathLike | Path | None = None,
     cnv_path: PathLike | Path | None = None,
-) -> tuple[PandasEncoder, PandasEncoder | None, PandasEncoder | None]:
+    ont_path: PathLike | Path | None = None,
+) -> tuple[
+    PandasEncoder,
+    PandasEncoder | None,
+    PandasEncoder | None,
+    PandasEncoder | None,
+]:
     """Load cell features for ScreenDL."""
     exp_mat = pd.read_csv(exp_path, index_col=0).astype("float32")
     exp_enc = PandasEncoder(exp_mat, name="cell_encoder")
@@ -31,7 +37,12 @@ def load_cell_features(
         cnv_mat = pd.read_csv(cnv_path, index_col=0).astype("float32")
         cnv_enc = PandasEncoder(cnv_mat, name="cnv_encoder")
 
-    return exp_enc, mut_enc, cnv_enc
+    ont_enc = None
+    if ont_path is not None:
+        ont_mat = pd.read_csv(ont_path, index_col=0).astype("float32")
+        ont_enc = PandasEncoder(ont_mat, name="ont_encoder")
+
+    return exp_enc, mut_enc, cnv_enc, ont_enc
 
 
 def load_drug_features(mol_path: PathLike | Path) -> PandasEncoder:

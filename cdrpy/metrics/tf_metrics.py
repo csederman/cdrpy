@@ -10,7 +10,7 @@ import keras.backend as K
 
 
 def r2(y_true: tf.Tensor, y_pred: tf.Tensor) -> float:
-    """Calculates r squared."""
+    """Calculates r-squared."""
     ss_res = K.sum(K.square(y_true - y_pred))
     ss_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - (ss_res / ss_tot)
@@ -19,3 +19,8 @@ def r2(y_true: tf.Tensor, y_pred: tf.Tensor) -> float:
 def pearson(y_true: tf.Tensor, y_pred: tf.Tensor) -> float:
     """Calculates pearson correlation."""
     return tfp.stats.correlation(y_true, y_pred)
+
+
+def rmse(s_true, s_pred):
+    """Calculates root mean squared error."""
+    return K.sqrt(K.mean(K.pow(s_true - s_pred, 2)))
