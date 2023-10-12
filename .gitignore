@@ -161,7 +161,7 @@ cython_debug/
 
 # Project
 /data/
-notebooks/sandbox/
+/notebooks/
 cdrpy/_version.py
 .vscode/
 /pkg/
