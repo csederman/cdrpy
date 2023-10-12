@@ -5,7 +5,7 @@ except ImportError:
         from importlib.metadata import version, PackageNotFoundError
 
         try:
-            __version__ = version("diffilearn")
+            __version__ = version("cdrpy")
         except PackageNotFoundError:
             __version__ = "0.0.0"
     except ImportError:

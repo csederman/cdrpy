@@ -1,7 +1,7 @@
 """
 Pipeline for running the original (legacy) DualGCN code.
 
->>> DUALGCN_ROOT="/scratch/ucgd/lustre-work/marth/u0871891/projects/cdrpy/pkg/DualGCN/code" \
+>>> CDRPY_DUALGCN_ROOT="/scratch/ucgd/lustre-work/marth/u0871891/projects/cdrpy/pkg/DualGCN/code" \
         python scripts/runners/run.py \
             model=DualGCN-legacy \
             model.hyper.epochs=2 \
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 def import_dualgcn_namespace() -> SimpleNamespace:
     """Imports the necessary function/classe definitions from DualGCN."""
     try:
-        path = os.environ["DUALGCN_ROOT"]
+        path = os.environ["CDRPY_DUALGCN_ROOT"]
     except KeyError as e:
         raise e
 

@@ -6,6 +6,7 @@ Created: Tue Sep 26 09:49:11 2023
 from __future__ import annotations
 
 import warnings
+import functools
 import numpy as np
 import typing as t
 
@@ -40,13 +41,17 @@ class BatchedResponseGenerator(Generator):
         drug_ids: t.Iterable[t.Any],
         targets: t.Iterable[t.Any] | None = None,
         sample_weights: t.Iterable[t.Any] | None = None,
+        drugs_first: bool = False,
         shuffle: bool = False,
         seed: t.Any = None,
-    ) -> Sequence:
+    ) -> ResponseSequence:
         """"""
-        # invalid_cells = self.dataset.cell_ids
+        encode_func = functools.partial(
+            self._encode_features, drugs_first=drugs_first
+        )
+
         return ResponseSequence(
-            self._encode_features,
+            encode_func,
             self.batch_size,
             cell_ids,
             drug_ids,
@@ -54,4 +59,13 @@ class BatchedResponseGenerator(Generator):
             sample_weights=sample_weights,
             shuffle=shuffle,
             seed=seed,
+        )
+
+    def flow_from_dataset(self, D: Dataset, **kwargs) -> ResponseSequence:
+        """"""
+        return self.flow(
+            cell_ids=D.cell_ids,
+            drug_ids=D.drug_ids,
+            targets=D.labels,
+            **kwargs,
         )

@@ -44,9 +44,15 @@ def data_loader(cfg: DictConfig) -> Dataset:
     exp_path = paths.screendl.exp
     mut_path = paths.screendl.mut if cfg.model.feat.use_mut else None
     cnv_path = paths.screendl.cnv if cfg.model.feat.use_cnv else None
+    ont_path = paths.screendl.ont if cfg.model.feat.use_ont else None
 
     drug_encoders = [screendl.load_drug_features(mol_path)]
-    cell_encoders = screendl.load_cell_features(exp_path, mut_path, cnv_path)
+    cell_encoders = screendl.load_cell_features(
+        exp_path=exp_path,
+        mut_path=mut_path,
+        cnv_path=cnv_path,
+        ont_path=ont_path,
+    )
     cell_encoders = list(filter(None, cell_encoders))
 
     return Dataset.from_csv(
@@ -92,8 +98,6 @@ def data_preprocessor(
 ) -> tuple[Dataset, Dataset, Dataset]:
     """Preprocessing pipeline.
 
-    Assumes the first dataset provided is the training set.
-
     Parameters
     ----------
         cfg:
@@ -136,6 +140,14 @@ def model_builder(cfg: DictConfig, train_dataset: Dataset) -> keras.Model:
         cnv_norm_layer = keras.layers.Normalization(name="cnv_norm")
         cnv_norm_layer.adapt(np.array(cnv_enc.encode(train_dataset.cell_ids)))
 
+    # extract tissue ontology shape from cell encoders
+    ont_dim = None
+    if params.feat.use_ont:
+        # FIXME: need to change to using an ordered dict for the cell encoders
+        #   -> then I can extract the encoders using the keys instead of the index
+        ont_enc: PandasEncoder = train_dataset.cell_encoders[-1]
+        ont_dim = ont_enc.shape[-1]
+
     # extract mol shape from drug encoders
     mol_enc: PandasEncoder = train_dataset.drug_encoders[0]
     mol_dim = mol_enc.shape[-1]
@@ -145,15 +157,18 @@ def model_builder(cfg: DictConfig, train_dataset: Dataset) -> keras.Model:
         mol_dim,
         mut_dim,
         cnv_dim,
+        ont_dim,
         exp_norm_layer=exp_norm_layer,
         cnv_norm_layer=cnv_norm_layer,
         exp_hidden_dims=params.hyper.hidden_dims.exp,
         mut_hidden_dims=params.hyper.hidden_dims.mut,
         cnv_hidden_dims=params.hyper.hidden_dims.cnv,
+        ont_hidden_dims=params.hyper.hidden_dims.ont,
         mol_hidden_dims=params.hyper.hidden_dims.mol,
         use_batch_norm=params.hyper.use_batch_norm,
         use_dropout=params.hyper.use_dropout,
         dropout_rate=params.hyper.dropout_rate,
+        initial_dropout_rate=params.hyper.initial_dropout_rate,
     )
 
     return model

@@ -16,10 +16,15 @@ sources:
     mut: "${dataset.dir}/ScreenDL/FeatureCellToSomaticMutationsTypeEncoded272CGCFeatures.csv"
     cnv: "${dataset.dir}/ScreenDL/FeatureCellToCopyNumber719CGCGenesCNRatioLogp1"
     mol: "${dataset.dir}/DrugToMorganFingerprint1024Bit.csv"
+    ont: "${dataset.dir}/ScreenDL/FeatureCellToOncotreeLineageOHE.csv"
   deepcdr:
     exp: "${dataset.dir}/DeepCDR/FeatureCellToExpression717CGCGenesTPMLogp1.csv"
     mut: "${dataset.dir}/DeepCDR/FeatureCellToSomaticMutationsPositionEncoded716CGCGenesAll.csv"
     mol: "${dataset.dir}/DrugToConvMolFeatures.pickle"
+  hidra:
+    exp: "${dataset.dir}/HiDRA/FeatureCellToExpression4982HiDRAGenes.csv"
+    mol: "${dataset.dir}/DrugToMorganFingerprint512Bit.csv"
+    gene: "${dataset.dir}/HiDRA/MetadataGeneSetDict.pickle"
 preprocess:
   norm: "grouped"
 output:

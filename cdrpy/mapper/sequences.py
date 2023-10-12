@@ -28,13 +28,14 @@ class ResponseSequence(Sequence):
 
     Parameters
     ----------
-        sample_function:
-        batch_size:
-        cell_ids:
-        drug_ids:
-        targets:
-        shuffle:
-        seed:
+        encode_function: A callable for encoding the specified
+            (cell, drug, label) pairs.
+        batch_size: The batch size.
+        cell_ids: An iterable of cell ids to encode.
+        drug_ids: An iterable of drug ids to encode.
+        targets: An iterable of target labels.
+        shuffle: Whether or not to shuffle after each iteration.
+        seed: A seed for random number generation.
     """
 
     def __init__(
@@ -46,7 +47,7 @@ class ResponseSequence(Sequence):
         targets: t.Iterable[t.Any] | None = None,
         sample_weights: t.Iterable[t.Any] | None = None,
         shuffle: bool = True,
-        seed: t.Any = None,
+        seed: int | float | None = None,
     ) -> None:
         # check that cell_ids is an iterable
         if not is_real_iterable(cell_ids):

@@ -5,6 +5,7 @@ Feature encoders.
 from __future__ import annotations
 
 import pickle
+import h5py
 
 import numpy as np
 import pandas as pd
@@ -13,10 +14,10 @@ import typing as t
 import tensorflow as tf
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from pathlib import Path
 
 from cdrpy.types import PathLike
+from cdrpy.util import io
 
 # from cdrpy.util.decorators import unstable
 
@@ -41,37 +42,32 @@ class Encoder(ABC, t.Generic[D]):
     @property
     @abstractmethod
     def size(self) -> int:
-        pass
+        ...
 
     @abstractmethod
     def get(self, id_: t.Any) -> t.Any:
-        pass
+        ...
+
+    # @abstractmethod
+    # def subset(self, ids: t.Iterable[t.Any]) -> Encoder[D]:
+    #     ...
 
     @abstractmethod
     def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
-        pass
+        ...
 
     @abstractmethod
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-        pass
+        ...
 
-    def to_pickle(self, file_path: PathLike | Path) -> None:
-        """Save encoder data as pickle object."""
-        with open(file_path, "wb") as fh:
-            pickle.dump(self.data, fh)
+    # @abstractmethod
+    # def save(self, file_or_group: h5py.File | h5py.Group, key: str) -> None:
+    #     ...
 
-    @classmethod
-    def from_pickle(
-        cls, file_path: PathLike | Path, name: str | None = None
-    ) -> Encoder:
-        """Load encoder from pickle file."""
-        with open(file_path, "rb") as fh:
-            data = pickle.load(fh)
-        return cls(data, name=name)
-
-    def get_config(self) -> dict[str, t.Any]:
-        """Get encoder configuration."""
-        return {"name": self.name, "class": self.__class__.__name__}
+    # @classmethod
+    # @abstractmethod
+    # def load(cls, file_or_group: h5py.File | h5py.Group, key: str) -> Encoder:
+    #     ...
 
 
 class DictEncoder(Encoder[dict]):
@@ -83,6 +79,7 @@ class DictEncoder(Encoder[dict]):
 
     @property
     def size(self) -> int:
+        """Returns the number of data points in the encoder."""
         return len(self.data)
 
     @property
@@ -113,7 +110,7 @@ class DictEncoder(Encoder[dict]):
 
     def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
         """Encode features for the specified IDs."""
-        return [self.data[k] for k in ids]
+        return [self.data[id_] for id_ in ids]
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Encode features as a `tf.data.Dataset` object."""
@@ -162,17 +159,21 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         df = pd.read_csv(file_path, index_col=index_col, **kwargs)
         return cls(df, name=name)
 
-    def to_pickle(self, file_path: PathLike | Path, **kwargs) -> None:
-        """Save encoder data as pickle object."""
-        self.data.to_pickle(file_path, **kwargs)
+    def save(self, file_or_group: h5py.File | h5py.Group, key: str) -> None:
+        """Saves the encoder in hdf5 format."""
+        group = file_or_group.create_group(key)
+        io.pandas_to_h5(group, self.data, index=True)
+        if self.name is not None:
+            group.attrs["name"] = self.name
 
     @classmethod
-    def from_pickle(
-        cls, file_path: PathLike | Path, name: str | None = None, **kwargs
-    ) -> None:
-        """Load encoder from pickle file."""
-        df = pd.read_pickle(file_path, **kwargs)
-        return cls(df, name=name)
+    def load(
+        cls, file_or_group: h5py.File | h5py.Group, key: str
+    ) -> PandasEncoder:
+        """Loads a PandasEncoder from an hdf5 file."""
+        group = file_or_group[key]
+        data = io.pandas_from_h5(group)
+        return cls(data, name=group.attrs.get("name"))
 
 
 class RepeatEncoder(Encoder[t.Any]):
@@ -210,3 +211,8 @@ class RepeatEncoder(Encoder[t.Any]):
         return tf.data.Dataset.from_tensor_slices(
             [self.data], name=self.name
         ).repeat(len(ids))
+
+
+EncoderMapper = {
+    PandasEncoder.__name__: PandasEncoder,
+}

@@ -6,6 +6,7 @@ cmp_base = "https://cog.sanger.ac.uk/cmp/download"
 dgidb_base = "https://www.dgidb.org/data/monthly_tsvs/2022-Feb"
 gdsc_base = "https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.4"
 gdsc_api_base = "https://www.cancerrxgene.org/api"
+stringdb_base = "https://stringdb-downloads.org/download"
 
 all: cmp gdsc depmap dgidb
 
@@ -56,5 +57,11 @@ gdsc:
 depmap:
 	mkdir -p $(data_dir)/DepMap
 	echo "Downloading DepMap data..."
-	
+
+stringdb:
+	mkdir -p $(data_dir)/StringDB
+	wget --no-check-certificate -P $(data_dir)/StringDB $(stringdb_base)/protein.links.v12.0/9606.protein.links.v12.0.txt.gz
+	wget --no-check-certificate -P $(data_dir)/StringDB $(stringdb_base)/protein.physical.links.v12.0/9606.protein.physical.links.v12.0.txt.gz
+	wget --no-check-certificate -P $(data_dir)/StringDB $(stringdb_base)/protein.info.v12.0/9606.protein.info.v12.0.txt.gz
+
 .PHONY: all cmp gdsc gdsc depmap dgidb

@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-import yaml
+import h5py
+import random
 
 import numpy as np
 import pandas as pd
@@ -12,35 +13,57 @@ import typing as t
 
 import tensorflow as tf
 
-from dataclasses import dataclass
 from pathlib import Path
 from tensorflow import keras
 
 from cdrpy.util.decorators import check_encoders
+from cdrpy.feat.encoders import Encoder, EncoderMapper
+from cdrpy.util import io
 
 if t.TYPE_CHECKING:
-    from cdrpy.feat.encoders import Encoder
     from cdrpy.types import PathLike
 
 
+EncoderDict = dict[str, Encoder]
 EncodedDataset = tuple[t.Any, np.ndarray]
 EncodedDatasetWithIds = tuple[t.Any, np.ndarray, np.ndarray]
 
 
-@dataclass(repr=False)
 class Dataset:
-    """Cancer drug response dataset."""
+    """Cancer drug response dataset.
 
-    obs: pd.DataFrame
-    name: str | None = None
-    desc: str | None = None
-    cell_encoders: list[Encoder] | None = None
-    drug_encoders: list[Encoder] | None = None
-    encode_drugs_first: bool = False
+    Parameters
+    ----------
+        obs:
+        cell_encoders:
+        drug_encoders:
+        cell_meta:
+        drug_meta:
+        encode_drugs_first:
+        name:
+        desc:
+        seed:
+    """
 
-    def __post_init__(self) -> None:
-        required_cols = ["id", "cell_id", "drug_id", "label"]
-        assert all(c in self.obs.columns for c in required_cols)
+    def __init__(
+        self,
+        obs: pd.DataFrame,
+        cell_encoders: EncoderDict | None = None,
+        drug_encoders: EncoderDict | None = None,
+        cell_meta: pd.DataFrame | None = None,
+        drug_meta: pd.DataFrame | None = None,
+        encode_drugs_first: bool = False,
+        name: str | None = None,
+        desc: str | None = None,
+    ) -> None:
+        self.obs = self._validate_obs(obs)
+        self.cell_encoders = cell_encoders
+        self.drug_encoders = drug_encoders
+        self.cell_meta = cell_meta
+        self.drug_meta = drug_meta
+        self.encode_drugs_first = encode_drugs_first
+        self.name = name
+        self.desc = desc
 
     def __repr__(self) -> str:
         return (
@@ -48,12 +71,22 @@ class Dataset:
             f"n_cells={self.n_cells:_}, n_drugs={self.n_drugs:_})"
         )
 
+    @staticmethod
+    def _validate_obs(obs: pd.DataFrame) -> pd.DataFrame:
+        """Checks that the required columns are in the observations."""
+        required_cols = ["id", "cell_id", "drug_id", "label"]
+        if not all(c in obs.columns for c in required_cols):
+            raise ValueError("Missing required columns")
+        return obs[required_cols]
+
     @property
     @check_encoders
     def encoders(self) -> list[Encoder] | None:
+        cell_encoders = list(self.cell_encoders.values())
+        drug_encoders = list(self.drug_encoders.values())
         if self.encode_drugs_first:
-            return self.drug_encoders + self.cell_encoders
-        return self.cell_encoders + self.drug_encoders
+            return drug_encoders + cell_encoders
+        return cell_encoders + drug_encoders
 
     @property
     def dtype(self) -> tf.dtypes.DType:
@@ -83,26 +116,22 @@ class Dataset:
     def n_drugs(self) -> int:
         return self.obs["drug_id"].unique().size
 
-    def register_encoders(
-        self, cell_encoders: list[Encoder], drug_encoders: list[Encoder]
-    ) -> None:
-        """Registers encoders with the dataset."""
-        # FIXME: add validation of encoders (check all ids in self.obs are in
-        #   the encoder keys)
-        self.cell_encoders = cell_encoders
-        self.drug_encoders = drug_encoders
-
     @check_encoders
     def _generator(
         self, return_ids: bool = False, as_numpy: bool = False
     ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
         """"""
+        # FIXME: deprecated
         for _, row in self.obs.iterrows():
             cell_id = row["cell_id"]
             drug_id = row["drug_id"]
 
-            cell_feat = [e.get(cell_id) for e in self.cell_encoders]
-            drug_feat = [e.get(drug_id) for e in self.drug_encoders]
+            cell_encoders = list(self.cell_encoders.values())
+            drug_encoders = list(self.drug_encoders.values())
+
+            cell_feat = [e.get(cell_id) for e in cell_encoders]
+            drug_feat = [e.get(drug_id) for e in drug_encoders]
+
             features = tuple(cell_feat + drug_feat)
 
             if return_ids:
@@ -115,12 +144,17 @@ class Dataset:
         self, return_ids: bool = False, as_numpy: bool = False
     ) -> EncodedDataset | EncodedDatasetWithIds:
         """"""
+        # FIXME: make this take the cell_ids and drug_ids to encoder and change
+        #   to encode_features
         # FIXME: add check that encoders return arrays
         # FIXME: add interface for encoder type (has encoder.encode method)
+        cell_encoders = list(self.cell_encoders.values())
+        drug_encoders = list(self.drug_encoders.values())
+
         return encode(
             self.obs,
-            self.cell_encoders,
-            self.drug_encoders,
+            cell_encoders,
+            drug_encoders,
             return_ids=return_ids,
             as_numpy=as_numpy,
             drugs_first=self.encode_drugs_first,
@@ -134,36 +168,32 @@ class Dataset:
         as_numpy: bool = False,
     ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
         """"""
+        # FIXME: deprecated
+        cell_encoders = list(self.cell_encoders.values())
+        drug_encoders = list(self.drug_encoders.values())
+
         split_inds = np.arange(batch_size, self.size, batch_size)
         for batch_df in np.array_split(self.obs, split_inds):
             yield encode(
                 batch_df,
-                self.cell_encoders,
-                self.drug_encoders,
+                cell_encoders,
+                drug_encoders,
                 return_ids=return_ids,
                 as_numpy=as_numpy,
             )
 
     @check_encoders
-    def encode_tf_legacy(self, return_ids: bool = False) -> tf.data.Dataset:
-        """"""
-        return encode_tf(
-            self.obs,
-            self.cell_encoders,
-            self.drug_encoders,
-            return_ids,
-            drugs_first=self.encode_drugs_first,
-        )
-
-    @check_encoders
     def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
         """"""
+        # FIXME: deprecated
         return tf.data.Dataset.from_generator(
             self._generator,
             output_signature=self._infer_tf_output_signature(),
         )
 
     def _infer_tf_output_signature(self) -> t.Any:
+        # FIXME: make this a method of the encoder or a funciton that wraps
+        #   the encoder
         # Add a drugs first option
         encoders: list[Encoder] = self.encoders
         get_tensor_spec = lambda enc: tf.TensorSpec(
@@ -177,34 +207,50 @@ class Dataset:
     def select(self, ids: t.Iterable[str], **kwargs) -> Dataset:
         """"""
         # FIXME: do we need this deep copy?
+        # FIXME: add optional param to select and subset from the encoders
         obs = self.obs[self.obs["id"].isin(ids)].copy(deep=True)
 
         return Dataset(
             obs,
             cell_encoders=self.cell_encoders,
             drug_encoders=self.drug_encoders,
+            cell_meta=self.cell_meta,
+            drug_meta=self.drug_meta,
             encode_drugs_first=self.encode_drugs_first,
             **kwargs,
         )
 
-    def sample(self, n: int, **kwargs) -> Dataset:
+    def select_cells(self, cell_ids: t.Iterable[str], **kwargs) -> Dataset:
+        """Creates a subset with the specified cell ids."""
+        obs_ids = self.obs[self.obs["cell_id"].isin(cell_ids)]["id"]
+        return self.select(obs_ids, **kwargs)
+
+    def select_drugs(self, drug_ids: t.Iterable[str], **kwargs) -> Dataset:
+        """Creates a subset with the specified drug ids."""
+        obs_ids = self.obs[self.obs["drug_id"].isin(drug_ids)]["id"]
+        return self.select(obs_ids, **kwargs)
+
+    def sample(self, n: int, seed: t.Any = None, **kwargs) -> Dataset:
         """Samples a random subset of `n` drug response observations."""
-        return self.select(self.obs["id"].sample(n=n), **kwargs)
+        return self.select(
+            self.obs["id"].sample(n=n, random_state=seed), **kwargs
+        )
 
-    def shuffle(self, random_state: t.Any = None) -> None:
+    def sample_cells(self, n: int, **kwargs) -> Dataset:
+        """Samples a random subset of `n` cells and their drug responses."""
+        choices = list(set(self.cell_ids))
+        sampled_cells = random.sample(choices, n)
+        return self.select_cells(sampled_cells, **kwargs)
+
+    def sample_drugs(self, n: int, **kwargs) -> Dataset:
+        """Samples a random subset of `n` drugs and their responses."""
+        choices = list(set(self.drug_ids))
+        sampled_drugs = random.sample(choices, n)
+        return self.select_drugs(sampled_drugs, **kwargs)
+
+    def shuffle(self, seed: t.Any = None) -> None:
         """Shuffles the drug response observations."""
-        self.obs = self.obs.sample(frac=1, random_state=random_state)
-
-    def get_config(self) -> dict:
-        """"""
-        config = {
-            "name": self.name,
-            "desc": self.desc,
-            "class": self.__class__.__name__,
-        }
-        config["cell_encoders"] = [e.get_config() for e in self.cell_encoders]
-        config["drug_encoders"] = [e.get_config() for e in self.drug_encoders]
-        return config
+        self.obs = self.obs.sample(frac=1, random_state=seed)
 
     @classmethod
     def from_csv(cls, file_path: str, **kwargs) -> Dataset:
@@ -212,62 +258,70 @@ class Dataset:
         df = pd.read_csv(file_path, dtype={"label": np.float32})
         return cls(df, **kwargs)
 
-    def save(self, dir_: PathLike | Path) -> None:
-        """Saves the dataset configuration and data."""
-        dir_ = Path(
-            dir_
-        )  # FIXME: this might not work for some path-like objects
-        ds_conf = self.get_config()
-        self.obs.to_pickle(dir_ / "obs.pickle")
+    def save(self: Dataset, file_path: str | Path) -> None:
+        """Saves the dataset to hdf5 format."""
 
-        items = zip(self.cell_encoders, ds_conf["cell_encoders"])
-        for i, (enc, enc_conf) in enumerate(items, 1):
-            enc_conf["source"] = f"cell_{i}.pickle"
-            enc.to_pickle(dir_ / enc_conf["source"])
+        # TODO: add saving fo metadata containers
 
-        items = zip(self.drug_encoders, ds_conf["drug_encoders"])
-        for i, (enc, enc_conf) in enumerate(items, 1):
-            enc_conf["source"] = f"drug_{i}.pickle"
-            enc.to_pickle(dir_ / enc_conf["source"])
+        with h5py.File(file_path, "w") as f:
+            # store options
+            f.attrs["encode_drugs_first"] = int(self.encode_drugs_first)
+            if self.name is not None:
+                f.attrs["name"] = self.name
+            if self.desc is not None:
+                f.attrs["desc"] = self.desc
 
-        with open(dir_ / "config.yaml", "w") as fh:
-            yaml.dump(ds_conf, fh, sort_keys=False)
+            # save the drug responses
+            group = f.create_group("obs")
+            io.pandas_to_h5(group, self.obs)
+
+            # save the cell_encoders
+            group = f.create_group("cell_encoders")
+            for key, enc in self.cell_encoders.items():
+                enc.save(group, key)
+                group.attrs[key] = enc.__class__.__name__
+
+            # save the drug encoders
+            group = f.create_group("drug_encoders")
+            for key, enc in self.drug_encoders.items():
+                enc.save(group, key)
+                group.attrs[key] = enc.__class__.__name__
 
     @classmethod
-    def load(cls, dir_: PathLike | Path) -> Dataset:
-        """Loads a saved dataset."""
-        import importlib
+    def load(cls, file_path: str | Path) -> Dataset:
+        """Loads a stored dataset from an hdf5 file."""
 
-        module = importlib.import_module("cdrpy.feat.encoders")
+        # TODO: add loading of metadata containers
 
-        dir_ = Path(dir_)  # FIXME: may not work for all pathlikes
+        with h5py.File(file_path, "r") as f:
+            name = f.attrs.get("name")
+            desc = f.attrs.get("desc")
+            encode_drugs_first = bool(f.attrs["encode_drugs_first"])
 
-        obs = pd.read_pickle(dir_ / "obs.pickle")
-        with open(dir_ / "config.yaml", "rb") as fh:
-            ds_conf = yaml.safe_load(fh)
+            # load the drug response observations
+            obs = io.pandas_from_h5(f["obs"])
 
-        cell_encoders = []
-        for enc_conf in ds_conf["cell_encoders"]:
-            class_ = getattr(module, enc_conf["class"])
-            enc = class_.from_pickle(
-                dir_ / enc_conf["source"], name=enc_conf["name"]
-            )
-            cell_encoders.append(enc)
+            # load the cell encoders
+            group = f["cell_encoders"]
+            cell_encoders = {}
+            for key in group.keys():
+                encoder_cls = EncoderMapper[group.attrs[key]]
+                cell_encoders[key] = encoder_cls.load(group, key)
 
-        drug_encoders = []
-        for enc_conf in ds_conf["drug_encoders"]:
-            class_ = getattr(module, enc_conf["class"])
-            enc = class_.from_pickle(
-                dir_ / enc_conf["source"], name=enc_conf["name"]
-            )
-            drug_encoders.append(enc)
+            # load the drug encoders
+            group = f["drug_encoders"]
+            drug_encoders = {}
+            for key in group.keys():
+                encoder_cls = EncoderMapper[group.attrs[key]]
+                drug_encoders[key] = encoder_cls.load(group, key)
 
         return cls(
             obs,
-            name=ds_conf["name"],
-            desc=ds_conf["desc"],
-            cell_encoders=cell_encoders,
-            drug_encoders=drug_encoders,
+            cell_encoders,
+            drug_encoders,
+            encode_drugs_first=encode_drugs_first,
+            name=name,
+            desc=desc,
         )
 
 
@@ -336,6 +390,7 @@ def get_predictions(
     **kwargs,
 ) -> pd.DataFrame:
     """"""
+    # FIXME: deprecated
     pred_df = []
     for ds in datasets:
         preds = model.predict(ds.encode_tf().batch(32)).reshape(-1)
@@ -364,6 +419,7 @@ def get_predictions_batches(
     **kwargs,
 ) -> pd.DataFrame:
     """"""
+    # FIXME: deprecated
     pred_df = []
     for ds in datasets:
         batch_df = []

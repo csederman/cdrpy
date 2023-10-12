@@ -1,20 +1,24 @@
 name: ScreenDL
 hyper:
-  batch_size: 32
-  epochs: 40
+  batch_size: 128
+  epochs: 100
   learning_rate: 0.0001
   early_stopping: true
-  dropout_rate: 0.1
+  dropout_rate: 0.2
+  initial_dropout_rate: 0.1
   use_dropout: true
   use_batch_norm: true
   hidden_dims:
-    exp: null
-    mut: null
-    cnv: null
-    mol: null
+    exp: [1024, 512, 256]
+    cnv: [256, 128, 64]
+    mut: [512, 256, 128]
+    mol: [256, 128, 64]
+    ont: [32, 16]
+    shared: [64, 32, 16]
 feat:
   use_mut: false
   use_cnv: false
+  use_ont: true
 io:
   save: true
   tensorboard: false
