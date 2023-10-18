@@ -276,16 +276,34 @@ class Dataset:
             io.pandas_to_h5(group, self.obs)
 
             # save the cell_encoders
-            group = f.create_group("cell_encoders")
-            for key, enc in self.cell_encoders.items():
-                enc.save(group, key)
-                group.attrs[key] = enc.__class__.__name__
+            if self.cell_encoders is not None:
+                f.attrs["has_cell_encoders"] = 1
+                group = f.create_group("cell_encoders")
+                for key, enc in self.cell_encoders.items():
+                    enc.save(group, key)
+                    group.attrs[key] = enc.__class__.__name__
+            else:
+                f.attrs["has_cell_encoders"] = 0
 
             # save the drug encoders
-            group = f.create_group("drug_encoders")
-            for key, enc in self.drug_encoders.items():
-                enc.save(group, key)
-                group.attrs[key] = enc.__class__.__name__
+            if self.drug_encoders is not None:
+                f.attrs["has_drug_encoders"] = 1
+                group = f.create_group("drug_encoders")
+                for key, enc in self.drug_encoders.items():
+                    enc.save(group, key)
+                    group.attrs[key] = enc.__class__.__name__
+            else:
+                f.attrs["has_drug_encoders"] = 0
+
+            # save cell metadata
+            if isinstance(self.cell_meta, pd.DataFrame):
+                group = f.create_group("cell_meta")
+                io.pandas_to_h5(group, self.cell_meta, index=True)
+
+            # save drug metadata
+            if isinstance(self.drug_meta, pd.DataFrame):
+                group = f.create_group("drug_meta")
+                io.pandas_to_h5(group, self.drug_meta, index=True)
 
     @classmethod
     def load(cls, file_path: str | Path) -> Dataset:
@@ -302,23 +320,41 @@ class Dataset:
             obs = io.pandas_from_h5(f["obs"])
 
             # load the cell encoders
-            group = f["cell_encoders"]
-            cell_encoders = {}
-            for key in group.keys():
-                encoder_cls = EncoderMapper[group.attrs[key]]
-                cell_encoders[key] = encoder_cls.load(group, key)
+            cell_encoders = None
+            if f.attrs["has_cell_encoders"] == 1:
+                group = f["cell_encoders"]
+                cell_encoders = {}
+                for key in group.keys():
+                    encoder_cls = EncoderMapper[group.attrs[key]]
+                    cell_encoders[key] = encoder_cls.load(group, key)
 
             # load the drug encoders
-            group = f["drug_encoders"]
-            drug_encoders = {}
-            for key in group.keys():
-                encoder_cls = EncoderMapper[group.attrs[key]]
-                drug_encoders[key] = encoder_cls.load(group, key)
+            drug_encoders = None
+            if f.attrs["has_drug_encoders"] == 1:
+                group = f["drug_encoders"]
+                drug_encoders = {}
+                for key in group.keys():
+                    encoder_cls = EncoderMapper[group.attrs[key]]
+                    drug_encoders[key] = encoder_cls.load(group, key)
+
+            # load the cell metadata
+            cell_meta = None
+            cell_meta_group = f.get("cell_meta")
+            if cell_meta_group is not None:
+                cell_meta = io.pandas_from_h5(cell_meta_group)
+
+            # load the drug metadata
+            drug_meta = None
+            drug_meta_group = f.get("drug_meta")
+            if drug_meta_group is not None:
+                drug_meta = io.pandas_from_h5(drug_meta_group)
 
         return cls(
             obs,
             cell_encoders,
             drug_encoders,
+            cell_meta=cell_meta,
+            drug_meta=drug_meta,
             encode_drugs_first=encode_drugs_first,
             name=name,
             desc=desc,
