@@ -21,27 +21,27 @@ K = t.TypeVar("K")
 V = t.TypeVar("V")
 
 
-def read_pickled_list(file_path: PathLike | Path) -> list[t.Any]:
+def read_pickled_list(file_path: PathLike | Path) -> t.List[t.Any]:
     """"""
     with open(file_path, "rb") as fh:
         lst = pickle.load(fh)
     return lst
 
 
-def read_pickled_dict(file_path: PathLike | Path) -> dict[t.Any, t.Any]:
+def read_pickled_dict(file_path: PathLike | Path) -> t.Dict[t.Any, t.Any]:
     """Load pickled dict object from file."""
     with open(file_path, "rb") as fh:
         dct = pickle.load(fh)
     return dct
 
 
-def read_list(file_path: PathLike | Path) -> list[str]:
+def read_list(file_path: PathLike | Path) -> t.List[str]:
     with open(file_path) as fh:
         lines = fh.read().splitlines()
     return lines
 
 
-def read_gmt(file_path: str | Path) -> dict[str, list[str]]:
+def read_gmt(file_path: str | Path) -> t.Dict[str, t.List[str]]:
     """Reads a `.gmt` file into a `dict` mapping gene sets to genes."""
     gs_dict = {}
     with open(file_path, "r") as fh:

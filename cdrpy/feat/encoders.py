@@ -95,7 +95,7 @@ class DictEncoder(Encoder[dict]):
             raise AttributeError(f"{type(first_val)} has no dtype attribute.")
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> t.Tuple[int, ...]:
         """Try and return the shape of the values."""
         first_key = list(self.data)[0]
         first_val = self.data[first_key]
@@ -108,15 +108,13 @@ class DictEncoder(Encoder[dict]):
         """Gets a single encoding."""
         return self.data[id_]
 
-    def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
+    def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         """Encode features for the specified IDs."""
         return [self.data[id_] for id_ in ids]
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Encode features as a `tf.data.Dataset` object."""
-        return tf.data.Dataset.from_tensor_slices(
-            self.encode(ids), name=self.name
-        )
+        return tf.data.Dataset.from_tensor_slices(self.encode(ids), name=self.name)
 
 
 class PandasEncoder(Encoder[pd.DataFrame]):
@@ -131,14 +129,14 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         return self.data.shape[0]
 
     @property
-    def shape(self) -> tuple[int]:
+    def shape(self) -> t.Tuple[int]:
         return self.data.shape[1:]
 
     def get(self, id_: t.Any) -> np.ndarray:
         """Gets a single encoding."""
         return self.data.loc[id_].values
 
-    def encode(self, ids: t.Iterable[t.Any]) -> list[np.ndarray]:
+    def encode(self, ids: t.Iterable[t.Any]) -> t.List[np.ndarray]:
         """Returns a dataframe of encoded values."""
         return list(self.data.loc[ids].values)
 
@@ -167,9 +165,7 @@ class PandasEncoder(Encoder[pd.DataFrame]):
             group.attrs["name"] = self.name
 
     @classmethod
-    def load(
-        cls, file_or_group: h5py.File | h5py.Group, key: str
-    ) -> PandasEncoder:
+    def load(cls, file_or_group: h5py.File | h5py.Group, key: str) -> PandasEncoder:
         """Loads a PandasEncoder from an hdf5 file."""
         group = file_or_group[key]
         data = io.pandas_from_h5(group)
@@ -190,7 +186,7 @@ class RepeatEncoder(Encoder[t.Any]):
             raise AttributeError(f"{type(self.data)} has no dtype attribute.")
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> t.Tuple[int, ...]:
         if hasattr(self.data, "shape"):
             return self.data.shape
         else:
@@ -203,14 +199,14 @@ class RepeatEncoder(Encoder[t.Any]):
     def get(self, id_: t.Any) -> t.Any:
         return self.data
 
-    def encode(self, ids: t.Iterable[t.Any]) -> list[t.Any]:
+    def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         return [self.data for _ in range(len(ids))]
 
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         """Return a `tf.data.RepeatDataset object`."""
-        return tf.data.Dataset.from_tensor_slices(
-            [self.data], name=self.name
-        ).repeat(len(ids))
+        return tf.data.Dataset.from_tensor_slices([self.data], name=self.name).repeat(
+            len(ids)
+        )
 
 
 EncoderMapper = {

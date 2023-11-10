@@ -24,9 +24,9 @@ if t.TYPE_CHECKING:
     from cdrpy.types import PathLike
 
 
-EncoderDict = dict[str, Encoder]
-EncodedDataset = tuple[t.Any, np.ndarray]
-EncodedDatasetWithIds = tuple[t.Any, np.ndarray, np.ndarray]
+EncoderDict = t.Dict[str, Encoder]
+EncodedDataset = t.Tuple[t.Any, np.ndarray]
+EncodedDatasetWithIds = t.Tuple[t.Any, np.ndarray, np.ndarray]
 
 
 class Dataset:
@@ -81,7 +81,7 @@ class Dataset:
 
     @property
     @check_encoders
-    def encoders(self) -> list[Encoder] | None:
+    def encoders(self) -> t.List[Encoder] | None:
         cell_encoders = list(self.cell_encoders.values())
         drug_encoders = list(self.drug_encoders.values())
         if self.encode_drugs_first:
@@ -195,7 +195,7 @@ class Dataset:
         # FIXME: make this a method of the encoder or a funciton that wraps
         #   the encoder
         # Add a drugs first option
-        encoders: list[Encoder] = self.encoders
+        encoders: t.List[Encoder] = self.encoders
         get_tensor_spec = lambda enc: tf.TensorSpec(
             enc.shape, tf.as_dtype(enc.dtype), name=enc.name
         )
@@ -232,9 +232,7 @@ class Dataset:
 
     def sample(self, n: int, seed: t.Any = None, **kwargs) -> Dataset:
         """Samples a random subset of `n` drug response observations."""
-        return self.select(
-            self.obs["id"].sample(n=n, random_state=seed), **kwargs
-        )
+        return self.select(self.obs["id"].sample(n=n, random_state=seed), **kwargs)
 
     def sample_cells(self, n: int, **kwargs) -> Dataset:
         """Samples a random subset of `n` cells and their drug responses."""
@@ -361,7 +359,7 @@ class Dataset:
         )
 
 
-def _extract_column_values(df: pd.DataFrame) -> tuple[np.ndarray, 3]:
+def _extract_column_values(df: pd.DataFrame) -> t.Tuple[np.ndarray, 3]:
     """Extract column values."""
     cell_ids = df["cell_id"].values
     drug_ids = df["drug_id"].values
@@ -371,8 +369,8 @@ def _extract_column_values(df: pd.DataFrame) -> tuple[np.ndarray, 3]:
 
 def encode(
     df: pd.DataFrame,
-    cell_encoders: list[Encoder],
-    drug_encoders: list[Encoder],
+    cell_encoders: t.List[Encoder],
+    drug_encoders: t.List[Encoder],
     return_ids: bool = False,
     as_numpy: bool = False,
     drugs_first: bool = False,
@@ -399,8 +397,8 @@ def encode(
 
 def encode_tf(
     df: pd.DataFrame,
-    cell_encoders: list[Encoder],
-    drug_encoders: list[Encoder],
+    cell_encoders: t.List[Encoder],
+    drug_encoders: t.List[Encoder],
     return_ids: bool = False,
     drugs_first: bool = False,
 ) -> tf.data.Dataset:
@@ -459,9 +457,7 @@ def get_predictions_batches(
     pred_df = []
     for ds in datasets:
         batch_df = []
-        batch_gen = ds.encode_batches(
-            batch_size, return_ids=True, as_numpy=True
-        )
+        batch_gen = ds.encode_batches(batch_size, return_ids=True, as_numpy=True)
         for batch in batch_gen:
             batch_x, batch_y, batch_cells, batch_drugs = batch
             batch_preds = model.predict_on_batch(batch_x).reshape(-1)

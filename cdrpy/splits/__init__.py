@@ -16,9 +16,9 @@ from ..util import io
 class Split:
     """"""
 
-    train_ids: list[str]
-    val_ids: list[str]
-    test_ids: list[str]
+    train_ids: t.List[str]
+    val_ids: t.List[str]
+    test_ids: t.List[str]
 
 
 def load_split(split_dir: Path | str, id: int) -> Split:

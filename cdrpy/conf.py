@@ -15,8 +15,8 @@ class DatasetSourceConfig:
 
     name: str
     label: str
-    cell: dict[str, str]
-    drug: dict[str, str]
+    cell: t.Dict[str, str]
+    drug: t.Dict[str, str]
 
 
 @dataclass
@@ -26,7 +26,7 @@ class DatasetConfig:
     name: str
     dir: str
     sources: DatasetSourceConfig
-    label_args: dict[str, t.Any]
+    label_args: t.Dict[str, t.Any]
     split_subdir: str
     scale_labels_per_drug: bool
 
