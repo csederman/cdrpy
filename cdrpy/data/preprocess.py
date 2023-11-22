@@ -8,7 +8,7 @@ import typing as t
 
 from sklearn.preprocessing import StandardScaler
 
-from ..feat.transformers import PandasGroupedStandardScaler
+from ..feat.transformers import GroupStandardScaler
 
 
 if t.TYPE_CHECKING:
@@ -23,25 +23,35 @@ def normalize_responses(
     val_ds: Dataset | None = None,
     test_ds: Dataset | None = None,
     norm_method: NormMethod = "global",
-    value_col: str = "label",
-    group_col: str = "drug_id",
 ) -> t.Tuple[Dataset, Dataset | None, Dataset | None]:
     """"""
     if norm_method == "global":
         # FIXME: redifine this as a PandasStandardScaler to avoid explicit "label"
-        scaler = StandardScaler()
-        train_ds.obs[value_col] = scaler.fit_transform(train_ds.obs[[value_col]])
+        ss = StandardScaler()
+        train_ds.obs["label"] = ss.fit_transform(train_ds.obs[["label"]])
+
         if val_ds is not None:
-            val_ds.obs[value_col] = scaler.transform(val_ds.obs[[value_col]])
+            val_ds.obs["label"] = ss.transform(val_ds.obs[["label"]])
+
         if test_ds is not None:
-            test_ds.obs[value_col] = scaler.transform(test_ds.obs[[value_col]])
+            test_ds.obs["label"] = ss.transform(test_ds.obs[["label"]])
+
     elif norm_method == "grouped":
-        scaler = PandasGroupedStandardScaler(value_col=value_col, group_col=group_col)
-        train_ds.obs = scaler.fit_transform(train_ds.obs)
+        gss = GroupStandardScaler()
+        train_ds.obs["label"] = gss.fit_transform(
+            train_ds.obs[["label"]], groups=train_ds.obs["drug_id"]
+        )
+
         if val_ds is not None:
-            val_ds.obs = scaler.transform(val_ds.obs)
+            val_ds.obs["label"] = gss.transform(
+                val_ds.obs["label"], groups=val_ds.obs["label"]
+            )
+
         if test_ds is not None:
-            test_ds.obs = scaler.transform(test_ds.obs)
+            test_ds.obs["label"] = gss.transform(
+                test_ds.obs["label"], groups=test_ds.obs["label"]
+            )
+
     else:
         norm_methods = ("global", "grouped")
         ValueError(f"norm_method must be one of {norm_methods}")
