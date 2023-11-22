@@ -44,12 +44,12 @@ def normalize_responses(
 
         if val_ds is not None:
             val_ds.obs["label"] = gss.transform(
-                val_ds.obs["label"], groups=val_ds.obs["label"]
+                val_ds.obs[["label"]], groups=val_ds.obs["drug_id"]
             )
 
         if test_ds is not None:
             test_ds.obs["label"] = gss.transform(
-                test_ds.obs["label"], groups=test_ds.obs["label"]
+                test_ds.obs[["label"]], groups=test_ds.obs["drug_id"]
             )
 
     else:
