@@ -87,7 +87,7 @@ class GroupStandardScaler(BaseEstimator, GroupTransformerMixin, OneToOneFeatureM
             self.vars_[i] = group_var
 
             constant_mask = _is_constant_feature(
-                group_mean, group_var, x_group.shape[0]
+                group_var, group_mean, x_group.shape[0]
             )
             self.scales_[i] = _handle_zeros_in_scale(
                 np.sqrt(group_var), copy=False, constant_mask=constant_mask
