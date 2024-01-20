@@ -5,6 +5,7 @@ Suite of tools for cancer drug response prediction.
 ## TODO
 
 - [ ] Make tensorflow an optional dependency 
+- [ ] Each dataset should be a subclass of the Dataset class and should have a download method that stores the raw data in ~/.cdrpy/datasets or another specified directory
 
 ## Setup and Installation
 

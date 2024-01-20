@@ -60,6 +60,10 @@ class Encoder(ABC, t.Generic[D]):
     def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
         ...
 
+    @abstractmethod
+    def tf_signature(self) -> t.Any:
+        ...
+
     # @abstractmethod
     # def save(self, file_or_group: h5py.File | h5py.Group, key: str) -> None:
     #     ...
@@ -116,6 +120,11 @@ class DictEncoder(Encoder[dict]):
         """Encode features as a `tf.data.Dataset` object."""
         return tf.data.Dataset.from_tensor_slices(self.encode(ids), name=self.name)
 
+    def tf_signature(self) -> t.Any:
+        return tf.TensorSpec(
+            self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
+        )
+
 
 class PandasEncoder(Encoder[pd.DataFrame]):
     """Encoder for data stored as `pd.DataFrame` objects."""
@@ -144,6 +153,11 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         """Returns features as a `tf.data.Dataset` object."""
         arr = self.encode(ids)
         return tf.data.Dataset.from_tensor_slices(arr, name=self.name)
+
+    def tf_signature(self) -> t.Any:
+        return tf.TensorSpec(
+            self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
+        )
 
     @classmethod
     def from_csv(
@@ -206,6 +220,11 @@ class RepeatEncoder(Encoder[t.Any]):
         """Return a `tf.data.RepeatDataset object`."""
         return tf.data.Dataset.from_tensor_slices([self.data], name=self.name).repeat(
             len(ids)
+        )
+
+    def tf_signature(self) -> t.Any:
+        return tf.TensorSpec(
+            self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
         )
 
 

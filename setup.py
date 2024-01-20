@@ -11,6 +11,8 @@ requirements = [
     "tensorflow-probability",
     "scikit-learn >= 1.3.0",
     "h5py >= 3.9.0",
+    "rdkit",
+    "deepchem >= 2.7.1",
 ]
 
 with open("./test-requirements.txt") as test_reqs_txt:

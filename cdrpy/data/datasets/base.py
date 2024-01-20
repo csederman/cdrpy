@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import h5py
 import random
 
@@ -13,12 +14,14 @@ import typing as t
 
 import tensorflow as tf
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from tensorflow import keras
 
 from cdrpy.util.decorators import check_encoders
 from cdrpy.feat.encoders import Encoder, EncoderMapper
 from cdrpy.util import io
+from cdrpy.data.utils.store import find_cdrpy_dataset_dir
 
 if t.TYPE_CHECKING:
     from cdrpy.types import PathLike
@@ -418,13 +421,13 @@ def encode_tf(
     return tf.data.Dataset.zip((features, labels))
 
 
+# FIXME: deprecated
 def get_predictions(
     datasets: t.Iterable[Dataset],
     model: keras.Model,
     **kwargs,
 ) -> pd.DataFrame:
     """"""
-    # FIXME: deprecated
     pred_df = []
     for ds in datasets:
         preds = model.predict(ds.encode_tf().batch(32)).reshape(-1)
@@ -446,6 +449,7 @@ def get_predictions(
     return pred_df
 
 
+# FIXME: deprecated
 def get_predictions_batches(
     datasets: t.Iterable[Dataset],
     model: keras.Model,
@@ -453,7 +457,6 @@ def get_predictions_batches(
     **kwargs,
 ) -> pd.DataFrame:
     """"""
-    # FIXME: deprecated
     pred_df = []
     for ds in datasets:
         batch_df = []
@@ -480,3 +483,43 @@ def get_predictions_batches(
         pred_df[column] = constant
 
     return pred_df
+
+
+class CustomDataset(Dataset, ABC):
+    """"""
+
+    name = None
+
+    def __init__(self, **kwargs) -> None:
+        if not os.path.exists(self.path):
+            self.download()
+
+        obs, c_enc, d_enc, c_meta, d_meta = self.read()
+
+        # FIXME: decide how to handle the `name` arg
+        if "name" in kwargs:
+            kwargs.pop("name")
+
+        super().__init__(
+            obs,
+            cell_encoders=c_enc,
+            drug_encoders=d_enc,
+            cell_meta=c_meta,
+            drug_meta=d_meta,
+            name=self.name,
+            **kwargs,
+        )
+
+    @property
+    def path(self) -> str:
+        return os.path.join(find_cdrpy_dataset_dir(), self.name)
+
+    @abstractmethod
+    def download(self) -> None:
+        pass
+
+    @abstractmethod
+    def read(
+        self,
+    ) -> t.Tuple[pd.DataFrame, EncoderDict, EncoderDict, pd.DataFrame, pd.DataFrame]:
+        pass
