@@ -31,13 +31,16 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/csederman/cdrpy",
     packages=find_packages(exclude=["tests.*", "tests"]),
+    include_package_data=True,
+    package_data={
+        "cdrpy.data.resources.genelists": ["*.pkl"],
+    },
     setup_requires=["setuptools_scm"],
     install_requires=requirements,
     tests_require=test_requirements,
     python_requires=">=3.8",
     zip_safe=False,
     test_suite="tests",
-    include_package_data=True,
     classifiers=[
         "Development Status :: 1 - Planning",
         "Intended Audience :: Developers",

@@ -32,7 +32,7 @@ def intersect_columns(
     if isinstance(cols, str):
         cols = [cols] * len(dfs)
 
-    uniq_vals_columns = [set(column_or_index(df, col)) for df, col in zip(dfs, cols)]
+    uniq_vals_columns = [set(column_or_index(d, c)) for d, c in zip(dfs, cols)]
     common_vals = set.intersection(*uniq_vals_columns)
 
     filtered_dfs = []
@@ -41,6 +41,13 @@ def intersect_columns(
         filtered_dfs.append(df)
 
     return tuple(filtered_dfs)
+
+
+def filter_by_value_counts(df: pd.DataFrame, col: t.Any, n: int) -> pd.DataFrame:
+    """Filter a pd.DataFrame by value_counts in a given column."""
+    counts = df[col].value_counts()
+    keep_values = counts[counts >= n].index
+    return df[df[col].isin(keep_values)]
 
 
 def as_obs_df(

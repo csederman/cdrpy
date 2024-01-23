@@ -1,2 +1,3 @@
 include README.md
+include cdrpy/data/resources/genelists/*.pkl
 recursive-include tests *.py

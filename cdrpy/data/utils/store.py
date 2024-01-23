@@ -51,6 +51,7 @@ def cdrpy_dataset_dir_from_environment() -> str | None:
 
 def file_name_from_url(url: str) -> str:
     """"""
+    # FIXME: need to properly parse all urls
     return os.path.basename(urlparse(url).path)
 
 
@@ -123,44 +124,44 @@ def safe_create_download_dir(dl_path: str) -> None:
         os.makedirs(dl_root)
 
 
-# def ensure_file_download(
-#     *subkeys: str,
-#     url: str,
-#     file_name: str | None = None,
-#     data_dir: str | None = None,
-#     force: bool = False,
-# ) -> str:
-#     """"""
-#     data_dir = find_cdrpy_data_dir(data_dir)
+def ensure_file_download(
+    *subkeys: str,
+    url: str,
+    file_name: str | None = None,
+    data_dir: str | None = None,
+    force: bool = False,
+) -> str:
+    """"""
+    data_dir = find_cdrpy_data_dir(data_dir)
 
-#     if data_dir is None:
-#         raise ValueError("Could not find cdrpy data directory.")
+    if data_dir is None:
+        raise ValueError("Could not find cdrpy data directory.")
 
-#     if file_name is None:
-#         file_name = file_name_from_url(url)
+    if file_name is None:
+        file_name = file_name_from_url(url)
 
-#     dl_path = get_download_file_path(*subkeys, file_name=file_name, data_dir=data_dir)
+    path = get_download_file_path(*subkeys, file_name=file_name, data_dir=data_dir)
 
-#     if os.path.isfile(dl_path) and not force:
-#         # TODO: add hash check
-#         return dl_path
+    if os.path.isfile(path) and not force:
+        # TODO: add hash check
+        return path
 
-#     safe_create_download_dir(dl_path)
+    safe_create_download_dir(path)
 
-#     tqdm_kwargs = dict(
-#         unit="B",
-#         unit_scale=True,
-#         unit_divisor=1024,
-#         miniters=1,
-#         disable=False,
-#         desc=f"Downloading {file_name}",
-#         leave=False,
-#     )
+    tqdm_kwargs = dict(
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+        miniters=1,
+        disable=False,
+        desc=f"Downloading {file_name}",
+        leave=False,
+    )
 
-#     with TQDMReportHook(**tqdm_kwargs) as t:
-#         urlretrieve(url, dl_path, reporthook=t.update_to)
+    with TQDMReportHook(**tqdm_kwargs) as t:
+        urlretrieve(url, path, reporthook=t.update_to)
 
-#     return dl_path
+    return path
 
 
 class DataStore:

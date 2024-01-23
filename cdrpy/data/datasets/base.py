@@ -489,6 +489,7 @@ class CustomDataset(Dataset, ABC):
     """"""
 
     name = None
+    desc = None
 
     def __init__(self, **kwargs) -> None:
         if not os.path.exists(self.path):
@@ -496,9 +497,12 @@ class CustomDataset(Dataset, ABC):
 
         obs, c_enc, d_enc, c_meta, d_meta = self.read()
 
-        # FIXME: decide how to handle the `name` arg
+        # FIXME: decide how to handle the `name` and `desc` args
         if "name" in kwargs:
             kwargs.pop("name")
+
+        if "desc" in kwargs:
+            kwargs.pop("desc")
 
         super().__init__(
             obs,
@@ -507,6 +511,7 @@ class CustomDataset(Dataset, ABC):
             cell_meta=c_meta,
             drug_meta=d_meta,
             name=self.name,
+            desc=self.desc,
             **kwargs,
         )
 
