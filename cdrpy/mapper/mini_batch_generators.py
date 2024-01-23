@@ -17,7 +17,7 @@ from .base import Generator
 from .sequences import ResponseSequence
 
 if t.TYPE_CHECKING:
-    from ..data.datasets import Dataset
+    from ..datasets import Dataset
 
 
 __all__ = [
@@ -46,9 +46,7 @@ class BatchedResponseGenerator(Generator):
         seed: t.Any = None,
     ) -> ResponseSequence:
         """"""
-        encode_func = functools.partial(
-            self._encode_features, drugs_first=drugs_first
-        )
+        encode_func = functools.partial(self._encode_features, drugs_first=drugs_first)
 
         return ResponseSequence(
             encode_func,

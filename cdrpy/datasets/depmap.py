@@ -15,8 +15,8 @@ from cdrpy.types import JSONObject
 from cdrpy.feat.featurizers import make_morgan_fingerprint_features
 
 from .base import CustomDataset, EncoderDict
-from ..utils import pandas as pdu
-from .._base import Genelist, load_genelist
+from ..data.utils import pandas as pdu
+from ..data._base import Genelist, load_genelist
 
 
 DEPMAP_API_BASE = "https://depmap.org/portal/download/api/downloads"
