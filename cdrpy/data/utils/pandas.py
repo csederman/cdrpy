@@ -1,4 +1,7 @@
-""""""
+"""Pandas utils for data processing.
+
+FIXME: this should be moved to the cdrpy-data repo
+"""
 
 from __future__ import annotations
 

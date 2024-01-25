@@ -21,7 +21,7 @@ from tensorflow import keras
 from cdrpy.util.decorators import check_encoders
 from cdrpy.feat.encoders import Encoder, EncoderMapper
 from cdrpy.util import io
-from cdrpy.data.utils.store import find_cdrpy_dataset_dir
+from cdrpy.datasets.utils import find_cdrpy_dataset_dir
 
 if t.TYPE_CHECKING:
     from cdrpy.types import PathLike
@@ -490,6 +490,7 @@ class CustomDataset(Dataset, ABC):
 
     name = None
     desc = None
+    url = None
 
     def __init__(self, **kwargs) -> None:
         if not os.path.exists(self.path):
@@ -498,11 +499,9 @@ class CustomDataset(Dataset, ABC):
         obs, c_enc, d_enc, c_meta, d_meta = self.read()
 
         # FIXME: decide how to handle the `name` and `desc` args
-        if "name" in kwargs:
-            kwargs.pop("name")
-
-        if "desc" in kwargs:
-            kwargs.pop("desc")
+        for kwarg in ("name", "desc"):
+            if kwarg in kwargs:
+                kwargs.pop(kwarg)
 
         super().__init__(
             obs,
@@ -515,10 +514,6 @@ class CustomDataset(Dataset, ABC):
             **kwargs,
         )
 
-    @property
-    def path(self) -> str:
-        return os.path.join(find_cdrpy_dataset_dir(), self.name)
-
     @abstractmethod
     def download(self) -> None:
         pass
@@ -528,3 +523,12 @@ class CustomDataset(Dataset, ABC):
         self,
     ) -> t.Tuple[pd.DataFrame, EncoderDict, EncoderDict, pd.DataFrame, pd.DataFrame]:
         pass
+
+    @property
+    def path(self) -> str:
+        if self.name is None:
+            raise ValueError("fixme")
+        return os.path.join(find_cdrpy_dataset_dir(), self.name)
+
+    def joinpath(self, path: str) -> str:
+        return os.path.join(self.path, path)

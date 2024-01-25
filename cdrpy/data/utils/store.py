@@ -1,4 +1,8 @@
-"""Data storage and download helpers."""
+"""Data storage and download helpers.
+
+FIXME: some of this should be moved to the cdrpy-data repo
+NOTE: critical parts for cdrpy have been moved to cdrpy.datasets.utils
+"""
 
 from __future__ import annotations
 
@@ -8,7 +12,7 @@ import logging
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
 
-from .pbar import TQDMReportHook
+from cdrpy.util.pbar import TQDMReportHook
 
 from ...constants import (
     IS_WINDOWS_PLATFORM,
