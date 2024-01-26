@@ -1,2 +1,2 @@
-from .genelist import Genelist
+from .genelist import GenelistEnum
 from .genelist import load_genelist

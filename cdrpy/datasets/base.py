@@ -1,6 +1,4 @@
-"""
-
-"""
+""""""
 
 from __future__ import annotations
 
@@ -24,7 +22,8 @@ from cdrpy.util import io
 from cdrpy.datasets.utils import find_cdrpy_dataset_dir
 
 if t.TYPE_CHECKING:
-    from cdrpy.types import PathLike
+    from cdrpy.transforms import Transform
+    from collections import Sequence
 
 
 EncoderDict = t.Dict[str, Encoder]
@@ -55,6 +54,7 @@ class Dataset:
         drug_encoders: EncoderDict | None = None,
         cell_meta: pd.DataFrame | None = None,
         drug_meta: pd.DataFrame | None = None,
+        transforms: Sequence[Transform] | None = None,
         encode_drugs_first: bool = False,
         name: str | None = None,
         desc: str | None = None,
@@ -68,11 +68,28 @@ class Dataset:
         self.name = name
         self.desc = desc
 
+        if transforms is not None:
+            if not isinstance(transforms, (list, tuple)) and callable(transforms):
+                transforms = [transforms]
+            elif not all(callable(t) for t in transforms):
+                raise ValueError(
+                    "`transforms` must be callable or a list of callables."
+                )
+            for transform in transforms:
+                self.apply(transform)
+
     def __repr__(self) -> str:
         return (
             f"Dataset(name={self.name}, size={self.size:_}, "
             f"n_cells={self.n_cells:_}, n_drugs={self.n_drugs:_})"
         )
+
+    def apply(self, transform: Transform | None) -> None:
+        """"""
+        if not callable(transform):
+            raise ValueError("`transform` must be callable")
+
+        transform(self)
 
     @staticmethod
     def _validate_obs(obs: pd.DataFrame) -> pd.DataFrame:
@@ -119,93 +136,93 @@ class Dataset:
     def n_drugs(self) -> int:
         return self.obs["drug_id"].unique().size
 
-    @check_encoders
-    def _generator(
-        self, return_ids: bool = False, as_numpy: bool = False
-    ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
-        """"""
-        # FIXME: deprecated
-        for _, row in self.obs.iterrows():
-            cell_id = row["cell_id"]
-            drug_id = row["drug_id"]
+    # @check_encoders
+    # def _generator(
+    #     self, return_ids: bool = False, as_numpy: bool = False
+    # ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
+    #     """"""
+    #     # FIXME: deprecated
+    #     for _, row in self.obs.iterrows():
+    #         cell_id = row["cell_id"]
+    #         drug_id = row["drug_id"]
 
-            cell_encoders = list(self.cell_encoders.values())
-            drug_encoders = list(self.drug_encoders.values())
+    #         cell_encoders = list(self.cell_encoders.values())
+    #         drug_encoders = list(self.drug_encoders.values())
 
-            cell_feat = [e.get(cell_id) for e in cell_encoders]
-            drug_feat = [e.get(drug_id) for e in drug_encoders]
+    #         cell_feat = [e.get(cell_id) for e in cell_encoders]
+    #         drug_feat = [e.get(drug_id) for e in drug_encoders]
 
-            features = tuple(cell_feat + drug_feat)
+    #         features = tuple(cell_feat + drug_feat)
 
-            if return_ids:
-                yield (features, row["label"], cell_id, drug_id)
+    #         if return_ids:
+    #             yield (features, row["label"], cell_id, drug_id)
 
-            yield (features, row["label"])
+    #         yield (features, row["label"])
 
-    @check_encoders
-    def encode(
-        self, return_ids: bool = False, as_numpy: bool = False
-    ) -> EncodedDataset | EncodedDatasetWithIds:
-        """"""
-        # FIXME: make this take the cell_ids and drug_ids to encoder and change
-        #   to encode_features
-        # FIXME: add check that encoders return arrays
-        # FIXME: add interface for encoder type (has encoder.encode method)
-        cell_encoders = list(self.cell_encoders.values())
-        drug_encoders = list(self.drug_encoders.values())
+    # @check_encoders
+    # def encode(
+    #     self, return_ids: bool = False, as_numpy: bool = False
+    # ) -> EncodedDataset | EncodedDatasetWithIds:
+    #     """"""
+    #     # FIXME: make this take the cell_ids and drug_ids to encoder and change
+    #     #   to encode_features
+    #     # FIXME: add check that encoders return arrays
+    #     # FIXME: add interface for encoder type (has encoder.encode method)
+    #     cell_encoders = list(self.cell_encoders.values())
+    #     drug_encoders = list(self.drug_encoders.values())
 
-        return encode(
-            self.obs,
-            cell_encoders,
-            drug_encoders,
-            return_ids=return_ids,
-            as_numpy=as_numpy,
-            drugs_first=self.encode_drugs_first,
-        )
+    #     return encode(
+    #         self.obs,
+    #         cell_encoders,
+    #         drug_encoders,
+    #         return_ids=return_ids,
+    #         as_numpy=as_numpy,
+    #         drugs_first=self.encode_drugs_first,
+    #     )
 
-    @check_encoders
-    def encode_batches(
-        self,
-        batch_size: int = 32,
-        return_ids: bool = False,
-        as_numpy: bool = False,
-    ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
-        """"""
-        # FIXME: deprecated
-        cell_encoders = list(self.cell_encoders.values())
-        drug_encoders = list(self.drug_encoders.values())
+    # @check_encoders
+    # def encode_batches(
+    #     self,
+    #     batch_size: int = 32,
+    #     return_ids: bool = False,
+    #     as_numpy: bool = False,
+    # ) -> t.Generator[EncodedDataset | EncodedDatasetWithIds, None, None]:
+    #     """"""
+    #     # FIXME: deprecated
+    #     cell_encoders = list(self.cell_encoders.values())
+    #     drug_encoders = list(self.drug_encoders.values())
 
-        split_inds = np.arange(batch_size, self.size, batch_size)
-        for batch_df in np.array_split(self.obs, split_inds):
-            yield encode(
-                batch_df,
-                cell_encoders,
-                drug_encoders,
-                return_ids=return_ids,
-                as_numpy=as_numpy,
-            )
+    #     split_inds = np.arange(batch_size, self.size, batch_size)
+    #     for batch_df in np.array_split(self.obs, split_inds):
+    #         yield encode(
+    #             batch_df,
+    #             cell_encoders,
+    #             drug_encoders,
+    #             return_ids=return_ids,
+    #             as_numpy=as_numpy,
+    #         )
 
-    @check_encoders
-    def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
-        """"""
-        # FIXME: deprecated
-        return tf.data.Dataset.from_generator(
-            self._generator,
-            output_signature=self._infer_tf_output_signature(),
-        )
+    # @check_encoders
+    # def encode_tf(self, return_ids: bool = False) -> tf.data.Dataset:
+    #     """"""
+    #     # FIXME: deprecated
+    #     return tf.data.Dataset.from_generator(
+    #         self._generator,
+    #         output_signature=self._infer_tf_output_signature(),
+    #     )
 
-    def _infer_tf_output_signature(self) -> t.Any:
-        # FIXME: make this a method of the encoder or a funciton that wraps
-        #   the encoder
-        # Add a drugs first option
-        encoders: t.List[Encoder] = self.encoders
-        get_tensor_spec = lambda enc: tf.TensorSpec(
-            enc.shape, tf.as_dtype(enc.dtype), name=enc.name
-        )
-        return (
-            tuple(get_tensor_spec(enc) for enc in encoders),
-            tf.TensorSpec(shape=(), dtype=tf.float32, name="label"),
-        )
+    # def _infer_tf_output_signature(self) -> t.Any:
+    #     # FIXME: make this a method of the encoder or a funciton that wraps
+    #     #   the encoder
+    #     # Add a drugs first option
+    #     encoders: t.List[Encoder] = self.encoders
+    #     get_tensor_spec = lambda enc: tf.TensorSpec(
+    #         enc.shape, tf.as_dtype(enc.dtype), name=enc.name
+    #     )
+    #     return (
+    #         tuple(get_tensor_spec(enc) for enc in encoders),
+    #         tf.TensorSpec(shape=(), dtype=tf.float32, name="label"),
+    #     )
 
     def select(self, ids: t.Iterable[str], **kwargs) -> Dataset:
         """"""
@@ -262,7 +279,9 @@ class Dataset:
     def save(self: Dataset, file_path: str | Path) -> None:
         """Saves the dataset to hdf5 format."""
 
-        # TODO: add saving fo metadata containers
+        # FIXME: this will be deprecated in favor of a more flexible storage
+        #   format that works more efficiently for large datasets with
+        #   variable feature formats
 
         with h5py.File(file_path, "w") as f:
             # store options
@@ -310,7 +329,9 @@ class Dataset:
     def load(cls, file_path: str | Path) -> Dataset:
         """Loads a stored dataset from an hdf5 file."""
 
-        # TODO: add loading of metadata containers
+        # FIXME: this will be deprecated in favor of a more flexible storage
+        #   format that works more efficiently for large datasets with
+        #   variable feature formats
 
         with h5py.File(file_path, "r") as f:
             name = f.attrs.get("name")
@@ -362,127 +383,127 @@ class Dataset:
         )
 
 
-def _extract_column_values(df: pd.DataFrame) -> t.Tuple[np.ndarray, 3]:
-    """Extract column values."""
-    cell_ids = df["cell_id"].values
-    drug_ids = df["drug_id"].values
-    labels = df["label"].values
-    return (cell_ids, drug_ids, labels)
+# def _extract_column_values(df: pd.DataFrame) -> t.Tuple[np.ndarray, 3]:
+#     """Extract column values."""
+#     cell_ids = df["cell_id"].values
+#     drug_ids = df["drug_id"].values
+#     labels = df["label"].values
+#     return (cell_ids, drug_ids, labels)
 
 
-def encode(
-    df: pd.DataFrame,
-    cell_encoders: t.List[Encoder],
-    drug_encoders: t.List[Encoder],
-    return_ids: bool = False,
-    as_numpy: bool = False,
-    drugs_first: bool = False,
-) -> EncodedDataset | EncodedDatasetWithIds:
-    """"""
-    cell_ids, drug_ids, labels = _extract_column_values(df)
+# def encode(
+#     df: pd.DataFrame,
+#     cell_encoders: t.List[Encoder],
+#     drug_encoders: t.List[Encoder],
+#     return_ids: bool = False,
+#     as_numpy: bool = False,
+#     drugs_first: bool = False,
+# ) -> EncodedDataset | EncodedDatasetWithIds:
+#     """"""
+#     cell_ids, drug_ids, labels = _extract_column_values(df)
 
-    cell_feat = tuple(e.encode(cell_ids) for e in cell_encoders)
-    drug_feat = tuple(e.encode(drug_ids) for e in drug_encoders)
+#     cell_feat = tuple(e.encode(cell_ids) for e in cell_encoders)
+#     drug_feat = tuple(e.encode(drug_ids) for e in drug_encoders)
 
-    if as_numpy:
-        cell_feat = tuple(np.array(f) for f in cell_feat)
-        drug_feat = tuple(np.array(f) for f in drug_feat)
+#     if as_numpy:
+#         cell_feat = tuple(np.array(f) for f in cell_feat)
+#         drug_feat = tuple(np.array(f) for f in drug_feat)
 
-    if drugs_first:
-        features = drug_feat + cell_feat
-    else:
-        features = cell_feat + drug_feat
+#     if drugs_first:
+#         features = drug_feat + cell_feat
+#     else:
+#         features = cell_feat + drug_feat
 
-    if return_ids:
-        return (features, labels, cell_ids, drug_ids)
-    return (features, labels)
-
-
-def encode_tf(
-    df: pd.DataFrame,
-    cell_encoders: t.List[Encoder],
-    drug_encoders: t.List[Encoder],
-    return_ids: bool = False,
-    drugs_first: bool = False,
-) -> tf.data.Dataset:
-    """"""
-    cell_ids, drug_ids, labels = _extract_column_values(df)
-
-    cell_features = [e.encode_tf(cell_ids) for e in cell_encoders]
-    drug_features = [e.encode_tf(drug_ids) for e in drug_encoders]
-
-    if drugs_first:
-        features = tf.data.Dataset.zip((*drug_features, *cell_features))
-    else:
-        features = tf.data.Dataset.zip((*cell_features, *drug_features))
-
-    labels = tf.data.Dataset.from_tensor_slices(labels)
-
-    return tf.data.Dataset.zip((features, labels))
+#     if return_ids:
+#         return (features, labels, cell_ids, drug_ids)
+#     return (features, labels)
 
 
-# FIXME: deprecated
-def get_predictions(
-    datasets: t.Iterable[Dataset],
-    model: keras.Model,
-    **kwargs,
-) -> pd.DataFrame:
-    """"""
-    pred_df = []
-    for ds in datasets:
-        preds = model.predict(ds.encode_tf().batch(32)).reshape(-1)
-        preds = pd.DataFrame(
-            {
-                "cell_id": ds.cell_ids,
-                "drug_id": ds.drug_ids,
-                "y_true": ds.labels,
-                "y_pred": preds,
-                "split": ds.name,
-            }
-        )
-        pred_df.append(preds)
+# def encode_tf(
+#     df: pd.DataFrame,
+#     cell_encoders: t.List[Encoder],
+#     drug_encoders: t.List[Encoder],
+#     return_ids: bool = False,
+#     drugs_first: bool = False,
+# ) -> tf.data.Dataset:
+#     """"""
+#     cell_ids, drug_ids, labels = _extract_column_values(df)
 
-    pred_df = pd.concat(pred_df)
-    for column, constant in kwargs.items():
-        pred_df[column] = constant
+#     cell_features = [e.encode_tf(cell_ids) for e in cell_encoders]
+#     drug_features = [e.encode_tf(drug_ids) for e in drug_encoders]
 
-    return pred_df
+#     if drugs_first:
+#         features = tf.data.Dataset.zip((*drug_features, *cell_features))
+#     else:
+#         features = tf.data.Dataset.zip((*cell_features, *drug_features))
+
+#     labels = tf.data.Dataset.from_tensor_slices(labels)
+
+#     return tf.data.Dataset.zip((features, labels))
 
 
 # FIXME: deprecated
-def get_predictions_batches(
-    datasets: t.Iterable[Dataset],
-    model: keras.Model,
-    batch_size: int,
-    **kwargs,
-) -> pd.DataFrame:
-    """"""
-    pred_df = []
-    for ds in datasets:
-        batch_df = []
-        batch_gen = ds.encode_batches(batch_size, return_ids=True, as_numpy=True)
-        for batch in batch_gen:
-            batch_x, batch_y, batch_cells, batch_drugs = batch
-            batch_preds = model.predict_on_batch(batch_x).reshape(-1)
-            batch_df.append(
-                pd.DataFrame(
-                    {
-                        "cell_id": batch_cells,
-                        "drug_id": batch_drugs,
-                        "y_true": batch_y,
-                        "y_pred": batch_preds,
-                    }
-                )
-            )
-        batch_df = pd.concat(batch_df)
-        batch_df["split"] = ds.name
-        pred_df.append(batch_df)
+# def get_predictions(
+#     datasets: t.Iterable[Dataset],
+#     model: keras.Model,
+#     **kwargs,
+# ) -> pd.DataFrame:
+#     """"""
+#     pred_df = []
+#     for ds in datasets:
+#         preds = model.predict(ds.encode_tf().batch(32)).reshape(-1)
+#         preds = pd.DataFrame(
+#             {
+#                 "cell_id": ds.cell_ids,
+#                 "drug_id": ds.drug_ids,
+#                 "y_true": ds.labels,
+#                 "y_pred": preds,
+#                 "split": ds.name,
+#             }
+#         )
+#         pred_df.append(preds)
 
-    pred_df = pd.concat(pred_df)
-    for column, constant in kwargs.items():
-        pred_df[column] = constant
+#     pred_df = pd.concat(pred_df)
+#     for column, constant in kwargs.items():
+#         pred_df[column] = constant
 
-    return pred_df
+#     return pred_df
+
+
+# FIXME: deprecated
+# def get_predictions_batches(
+#     datasets: t.Iterable[Dataset],
+#     model: keras.Model,
+#     batch_size: int,
+#     **kwargs,
+# ) -> pd.DataFrame:
+#     """"""
+#     pred_df = []
+#     for ds in datasets:
+#         batch_df = []
+#         batch_gen = ds.encode_batches(batch_size, return_ids=True, as_numpy=True)
+#         for batch in batch_gen:
+#             batch_x, batch_y, batch_cells, batch_drugs = batch
+#             batch_preds = model.predict_on_batch(batch_x).reshape(-1)
+#             batch_df.append(
+#                 pd.DataFrame(
+#                     {
+#                         "cell_id": batch_cells,
+#                         "drug_id": batch_drugs,
+#                         "y_true": batch_y,
+#                         "y_pred": batch_preds,
+#                     }
+#                 )
+#             )
+#         batch_df = pd.concat(batch_df)
+#         batch_df["split"] = ds.name
+#         pred_df.append(batch_df)
+
+#     pred_df = pd.concat(pred_df)
+#     for column, constant in kwargs.items():
+#         pred_df[column] = constant
+
+#     return pred_df
 
 
 class CustomDataset(Dataset, ABC):

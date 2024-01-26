@@ -34,10 +34,17 @@ class PRISMRepurposingDataset(DepMapDataset):
         """"""
         obs = pd.read_csv(self.joinpath("labels.csv"))
 
-        cell_enc = {"exp": PandasEncoder.from_csv(self.joinpath("cell_feature_ge.csv"))}
-        drug_enc = {"mol": PandasEncoder.from_csv(self.joinpath("drug_feature_fp.csv"))}
+        ge_enc = PandasEncoder.from_csv(
+            self.joinpath("cell_feature_ge.csv"), name="ge_encoder"
+        )
+        fp_enc = PandasEncoder.from_csv(
+            self.joinpath("drug_feature_fp.csv"), name="fp_encoder"
+        )
+
+        cell_encoders = {"exp": ge_enc}
+        drug_encoders = {"mol": fp_enc}
 
         cell_meta = pd.read_csv(self.joinpath("cell_metadata.csv"), index_col=0)
         drug_meta = pd.read_csv(self.joinpath("drug_metadata.csv"), index_col=0)
 
-        return obs, cell_enc, drug_enc, cell_meta, drug_meta
+        return obs, cell_encoders, drug_encoders, cell_meta, drug_meta

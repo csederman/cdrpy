@@ -56,9 +56,9 @@ class Encoder(ABC, t.Generic[D]):
     def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
         ...
 
-    @abstractmethod
-    def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-        ...
+    # @abstractmethod
+    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
+    #     ...
 
     @abstractmethod
     def tf_signature(self) -> t.Any:
@@ -116,9 +116,9 @@ class DictEncoder(Encoder[dict]):
         """Encode features for the specified IDs."""
         return [self.data[id_] for id_ in ids]
 
-    def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-        """Encode features as a `tf.data.Dataset` object."""
-        return tf.data.Dataset.from_tensor_slices(self.encode(ids), name=self.name)
+    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
+    #     """Encode features as a `tf.data.Dataset` object."""
+    #     return tf.data.Dataset.from_tensor_slices(self.encode(ids), name=self.name)
 
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(
@@ -149,10 +149,10 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         """Returns a dataframe of encoded values."""
         return list(self.data.loc[ids].values)
 
-    def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-        """Returns features as a `tf.data.Dataset` object."""
-        arr = self.encode(ids)
-        return tf.data.Dataset.from_tensor_slices(arr, name=self.name)
+    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
+    #     """Returns features as a `tf.data.Dataset` object."""
+    #     arr = self.encode(ids)
+    #     return tf.data.Dataset.from_tensor_slices(arr, name=self.name)
 
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(
@@ -216,11 +216,11 @@ class RepeatEncoder(Encoder[t.Any]):
     def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         return [self.data for _ in range(len(ids))]
 
-    def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-        """Return a `tf.data.RepeatDataset object`."""
-        return tf.data.Dataset.from_tensor_slices([self.data], name=self.name).repeat(
-            len(ids)
-        )
+    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
+    #     """Return a `tf.data.RepeatDataset object`."""
+    #     return tf.data.Dataset.from_tensor_slices([self.data], name=self.name).repeat(
+    #         len(ids)
+    #     )
 
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(

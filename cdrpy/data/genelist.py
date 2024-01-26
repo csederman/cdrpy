@@ -11,7 +11,7 @@ from cdrpy.data._base import DATA_MODULE, load_pickled_data_resource
 GENE_DATA_MODULE = f"{DATA_MODULE}.genelists"
 
 
-class Genelist(str, Enum):
+class GenelistEnum(str, Enum):
     """Available cdrpy genelists."""
 
     CGC = "cgc"
@@ -21,14 +21,14 @@ class Genelist(str, Enum):
 
 
 GENELIST_FILES = {
-    Genelist.CGC: "cgc.pkl",
-    Genelist.MCG: "mcg.pkl",
-    Genelist.LINCS: "lincs.pkl",
-    Genelist.HALLMARK: "hallmark.pkl",
+    GenelistEnum.CGC: "cgc.pkl",
+    GenelistEnum.MCG: "mcg.pkl",
+    GenelistEnum.LINCS: "lincs.pkl",
+    GenelistEnum.HALLMARK: "hallmark.pkl",
 }
 
 
-def load_genelist(genelist: Genelist) -> t.List[str]:
+def load_genelist(genelist: GenelistEnum) -> t.List[str]:
     """"""
     return load_pickled_data_resource(
         GENELIST_FILES[genelist], data_module=GENE_DATA_MODULE
