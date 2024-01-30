@@ -33,10 +33,12 @@ def home_dir() -> str:
 
 def cdrpy_dataset_dir_from_environment() -> str | None:
     """Get config path from environment variable."""
-    dataset_dir = os.environ.get(CDRPY_DATA_PREFIX)
-    if not dataset_dir:
+    dataset_dir_prefix = os.environ.get(CDRPY_DATA_PREFIX)
+
+    if dataset_dir_prefix is None:
         return None
-    return os.path.join(dataset_dir, DEFAULT_CDRPY_DATASET_DIR)
+
+    return os.path.join(dataset_dir_prefix, DEFAULT_CDRPY_DATASET_DIR)
 
 
 def find_cdrpy_dataset_dir(dataset_dir: str | None = None) -> str | None:
