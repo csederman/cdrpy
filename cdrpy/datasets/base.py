@@ -97,7 +97,7 @@ class Dataset:
         required_cols = ["id", "cell_id", "drug_id", "label"]
         if not all(c in obs.columns for c in required_cols):
             raise ValueError("Missing required columns")
-        return obs[required_cols]
+        return obs
 
     @property
     @check_encoders
