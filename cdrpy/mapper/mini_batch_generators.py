@@ -13,7 +13,7 @@ import typing as t
 from keras.utils import Sequence
 
 
-from .base import Generator
+from .base import Generator, CombinationGenerator
 from .sequences import ResponseSequence, CombinationResponseSequence
 
 if t.TYPE_CHECKING:
@@ -70,7 +70,7 @@ class BatchedResponseGenerator(Generator):
         )
 
 
-class BatchedCombinationResponseGenerator(Generator):
+class BatchedCombinationResponseGenerator(CombinationGenerator):
     """"""
 
     def __init__(self, D: CombinationDataset, batch_size: int) -> None:
