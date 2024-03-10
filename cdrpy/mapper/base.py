@@ -63,3 +63,31 @@ class Generator(ABC):
         Creates a Keras Sequence or similar input appropriate for CDRP models.
         """
         ...
+
+
+class CombinationGenerator(Generator):
+    """Generator for creating keras sequences as inputs for modeling."""
+
+    def _encode_features(
+        self,
+        cell_ids: t.Iterable[t.Any],
+        drug_1_ids: t.Iterable[t.Any],
+        drug_2_ids: t.Iterable[t.Any],
+        drugs_first: bool = False,
+    ) -> t.Any:
+        """Encode the features"""
+
+        def encode(e: Encoder, ids: t.Iterable[t.Any]) -> np.ndarray:
+            return np.asanyarray(e.encode(ids))
+
+        cell_encoders = list(self.dataset.cell_encoders.values())
+        drug_encoders = list(self.dataset.drug_encoders.values())
+
+        cell_feats = [encode(e, cell_ids) for e in cell_encoders]
+        drug_1_feats = [encode(e, drug_1_ids) for e in drug_encoders]
+        drug_2_feats = [encode(e, drug_2_ids) for e in drug_encoders]
+
+        if drugs_first:
+            return drug_1_feats + drug_2_feats + cell_feats
+
+        return cell_feats + drug_1_feats + drug_2_feats

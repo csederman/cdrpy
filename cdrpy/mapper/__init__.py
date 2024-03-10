@@ -1,2 +1,4 @@
 from .sequences import ResponseSequence
+from .sequences import CombinationResponseSequence
 from .mini_batch_generators import BatchedResponseGenerator
+from .mini_batch_generators import BatchedCombinationResponseGenerator

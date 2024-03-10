@@ -14,14 +14,15 @@ from keras.utils import Sequence
 
 
 from .base import Generator
-from .sequences import ResponseSequence
+from .sequences import ResponseSequence, CombinationResponseSequence
 
 if t.TYPE_CHECKING:
-    from ..datasets import Dataset
+    from ..datasets import Dataset, CombinationDataset
 
 
 __all__ = [
     "BatchedResponseGenerator",
+    "BatchedCombinationResponseGenerator",
 ]
 
 
@@ -64,6 +65,55 @@ class BatchedResponseGenerator(Generator):
         return self.flow(
             cell_ids=D.cell_ids,
             drug_ids=D.drug_ids,
+            targets=D.labels,
+            **kwargs,
+        )
+
+
+class BatchedCombinationResponseGenerator(Generator):
+    """"""
+
+    def __init__(self, D: CombinationDataset, batch_size: int) -> None:
+        self.dataset = D
+        self.batch_size = batch_size
+
+    def num_batch_dims(self) -> int:
+        return 1
+
+    def flow(
+        self,
+        cell_ids: t.Iterable[t.Any],
+        drug_1_ids: t.Iterable[t.Any],
+        drug_2_ids: t.Iterable[t.Any],
+        targets: t.Iterable[t.Any] | None = None,
+        sample_weights: t.Iterable[t.Any] | None = None,
+        drugs_first: bool = False,
+        shuffle: bool = False,
+        seed: t.Any = None,
+    ) -> ResponseSequence:
+        """"""
+        encode_func = functools.partial(self._encode_features, drugs_first=drugs_first)
+
+        return CombinationResponseSequence(
+            encode_func,
+            self.batch_size,
+            cell_ids,
+            drug_1_ids,
+            drug_2_ids,
+            targets=targets,
+            sample_weights=sample_weights,
+            shuffle=shuffle,
+            seed=seed,
+        )
+
+    def flow_from_dataset(
+        self, D: CombinationDataset, **kwargs
+    ) -> CombinationResponseSequence:
+        """"""
+        return self.flow(
+            cell_ids=D.cell_ids,
+            drug_1_ids=D.drug_1_ids,
+            drug_2_ids=D.drug_2_ids,
             targets=D.labels,
             **kwargs,
         )
