@@ -26,6 +26,25 @@ def unstable(*warning_args, **warning_kwargs):
     return decorator
 
 
+def deprecated(**warning_kwargs):
+    """Warn users about deprecated functions."""
+    # FIXME: fix handling of args and kwargs
+
+    def decorator(func: F) -> F:
+
+        def wrapper(*args, **kwargs) -> R:
+            if "message" not in warning_kwargs:
+                warning_kwargs["message"] = (
+                    f"{func.__name__} is deprecated and will be removed in a future release."
+                )
+            warnings.warn(**warning_kwargs)
+            return func(*args, **kwargs)
+
+        return t.cast(wrapper, functools.update_wrapper(wrapper, func))
+
+    return decorator
+
+
 class CDRPYException(Exception):
     """Base class for catching all cdrpy exceptions."""
 
