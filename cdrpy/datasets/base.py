@@ -110,7 +110,7 @@ class Dataset:
 
     @property
     def dtype(self) -> tf.dtypes.DType:
-        return tf.as_dtype(self.labels["label"].dtype)
+        return tf.as_dtype(self.obs["label"].dtype)
 
     @property
     def labels(self) -> np.ndarray:

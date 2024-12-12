@@ -13,6 +13,7 @@ requirements = [
     "h5py >= 3.9.0",
     "rdkit",
     "deepchem >= 2.7.1",
+    "tqdm",
 ]
 
 with open("./test-requirements.txt") as test_reqs_txt:
