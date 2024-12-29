@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from cdrpy.constants import CDRPY_DATASET_BASE_URL
 from cdrpy.datasets.base import CustomDataset, EncoderDict
 from cdrpy.datasets.utils import ensure_dataset_download, extract_dataset_archive
-from cdrpy.feat.encoders import PandasEncoder
+from cdrpy.feat.encoders import PandasEncoder, DictEncoder
 
 
 _DESCRIPTION = "Genomics of Drug Sensitivity in Cancer (GDSC) dataset."
@@ -63,8 +63,9 @@ class GDSCDataset(CustomDataset):
             keep_default_na=False,
         )
 
-        drug_smiles_encoder = PandasEncoder.from_csv(
-            self.joinpath(_SOURCES.drug_smiles), name="smiles"
+        drug_smiles_data = pd.read_csv(self.joinpath(_SOURCES.drug_smiles), index_col=0)
+        drug_smiles_encoder = DictEncoder(
+            drug_smiles_data["smiles"].to_dict(), name="smiles"
         )
 
         cell_encoders = {"exp": cell_gexp_encoder}
