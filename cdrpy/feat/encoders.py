@@ -4,8 +4,8 @@ Feature encoders.
 
 from __future__ import annotations
 
-import pickle
 import h5py
+import copy
 
 import numpy as np
 import pandas as pd
@@ -55,6 +55,9 @@ class Encoder(ABC, t.Generic[D]):
 
     @abstractmethod
     def merge(self, other: Encoder) -> Encoder: ...
+
+    @abstractmethod
+    def copy(self) -> Encoder: ...
 
     # @abstractmethod
     # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
@@ -131,6 +134,9 @@ class DictEncoder(Encoder[dict]):
         data = {**other.data, **self.data}
         return DictEncoder(data, **kwargs)
 
+    def copy(self) -> DictEncoder:
+        return DictEncoder(copy.deepcopy(self.data), name=self.name)
+
 
 class PandasEncoder(Encoder[pd.DataFrame]):
     """Encoder for data stored as `pd.DataFrame` objects."""
@@ -171,6 +177,10 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         other_data = other.data[~other.data.index.isin(self.data.index)]
         data = pd.concat([self.data, other_data])
         return PandasEncoder(data, **kwargs)
+
+    def copy(self) -> PandasEncoder:
+        """Creates a copy of the encoder and it's data."""
+        return PandasEncoder(self.data.copy(deep=True), name=self.name)
 
     @classmethod
     def from_csv(
@@ -242,6 +252,10 @@ class RepeatEncoder(Encoder[t.Any]):
         # NOTE: we prioritize data already in self
         # NOTE: we don't check that data with the same key is identical
         return RepeatEncoder(self.data, **kwargs)
+
+    def copy(self) -> RepeatEncoder:
+        """Creates a copy of the enoder and it's data."""
+        return RepeatEncoder(copy.deepcopy(self.data), name=self.name)
 
 
 EncoderMapper = {
