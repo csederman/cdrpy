@@ -28,7 +28,11 @@ GENELIST_FILES = {
 }
 
 
-def load_genelist(genelist: GenelistEnum) -> t.List[str]:
+def load_genelist(
+    genelist: t.Literal[
+        GenelistEnum.CGC, GenelistEnum.MCG, GenelistEnum.LINCS, GenelistEnum.HALLMARK
+    ]
+) -> t.List[str]:
     """"""
     return load_pickled_data_resource(
         GENELIST_FILES[genelist], data_module=GENE_DATA_MODULE
