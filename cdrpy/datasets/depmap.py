@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import pandas as pd
+import typing as t
 
 from cdrpy.constants import CDRPY_DATASET_BASE_URL
 
 from cdrpy.datasets.base import CustomDataset
 from cdrpy.datasets.utils import ensure_dataset_download, extract_dataset_archive
 from cdrpy.feat.encoders import PandasEncoder
+
+
+if t.TYPE_CHECKING:
+    from .base import EncoderDict
 
 
 class DepMapDataset(CustomDataset):
@@ -30,9 +35,17 @@ class PRISMRepurposingDataset(DepMapDataset):
     desc = PRISM_REPURPOSING_DESCRIPTION
     url = f"{CDRPY_DATASET_BASE_URL}/depmap-prism-repurposing.tar.gz"
 
-    def read(self) -> None:
+    def read(self, featureless: bool = False) -> t.Tuple[
+        pd.DataFrame,
+        EncoderDict | None,
+        EncoderDict | None,
+        pd.DataFrame | None,
+        pd.DataFrame | None,
+    ]:
         """"""
         obs = pd.read_csv(self.joinpath("labels.csv"))
+        if featureless:
+            return obs, None, None, None, None
 
         ge_enc = PandasEncoder.from_csv(
             self.joinpath("cell_feature_ge.csv"), name="ge_encoder"

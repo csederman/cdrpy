@@ -43,15 +43,21 @@ class GDSCDataset(CustomDataset):
         tarfile_path = ensure_dataset_download(url=self.url, data_dir=self.path)
         extract_dataset_archive(tarfile_path, extract_to=self.path)
 
-    def read(
-        self,
-    ) -> t.Tuple[pd.DataFrame, EncoderDict, EncoderDict, pd.DataFrame, pd.DataFrame]:
+    def read(self, featureless: bool = False) -> t.Tuple[
+        pd.DataFrame,
+        EncoderDict | None,
+        EncoderDict | None,
+        pd.DataFrame | None,
+        pd.DataFrame | None,
+    ]:
         """"""
         obs = (
             pd.read_csv(self.joinpath(_SOURCES.labels))
             .filter(items=["id", "cell_id", "drug_id", self.metric])
             .rename(columns={self.metric: "label"})
         )
+        if featureless:
+            return obs, None, None, None, None
 
         cell_meta = pd.read_csv(self.joinpath(_SOURCES.cell_meta), index_col=0)
         drug_meta = pd.read_csv(self.joinpath(_SOURCES.drug_meta), index_col=0)

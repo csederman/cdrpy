@@ -372,11 +372,11 @@ class CustomDataset(Dataset, ABC):
     desc = None
     url = None
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, featureless: bool = False, **kwargs) -> None:
         if not os.path.exists(self.path):
             self.download()
 
-        obs, c_enc, d_enc, c_meta, d_meta = self.read()
+        obs, c_enc, d_enc, c_meta, d_meta = self.read(featureless)
 
         # FIXME: decide how to handle the `name` and `desc` args
         for kwarg in ("name", "desc"):
@@ -401,7 +401,13 @@ class CustomDataset(Dataset, ABC):
     @abstractmethod
     def read(
         self,
-    ) -> t.Tuple[pd.DataFrame, EncoderDict, EncoderDict, pd.DataFrame, pd.DataFrame]:
+    ) -> t.Tuple[
+        pd.DataFrame,
+        EncoderDict | None,
+        EncoderDict | None,
+        pd.DataFrame | None,
+        pd.DataFrame | None,
+    ]:
         pass
 
     @property
