@@ -46,6 +46,9 @@ class Encoder(ABC, t.Generic[D]):
     @abstractmethod
     def get(self, id_: t.Any) -> t.Any: ...
 
+    @abstractmethod
+    def keys(self) -> t.List[t.Any] | None: ...
+
     # @abstractmethod
     # def subset(self, ids: t.Iterable[t.Any]) -> Encoder[D]:
     #     ...
@@ -114,6 +117,9 @@ class DictEncoder(Encoder[dict]):
         """Gets a single encoding."""
         return self.data[id_]
 
+    def keys(self) -> t.List[t.Any]:
+        return list(self.data.keys())
+
     def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         """Encode features for the specified IDs."""
         return [self.data[id_] for id_ in ids]
@@ -156,6 +162,10 @@ class PandasEncoder(Encoder[pd.DataFrame]):
     def get(self, id_: t.Any) -> np.ndarray:
         """Gets a single encoding."""
         return self.data.loc[id_].values
+
+    def keys(self) -> t.List[t.Any]:
+        """Returns a list of lookup keys"""
+        return self.data.index.to_list()
 
     def encode(self, ids: t.Iterable[t.Any]) -> t.List[np.ndarray]:
         """Returns a dataframe of encoded values."""
@@ -235,6 +245,9 @@ class RepeatEncoder(Encoder[t.Any]):
 
     def get(self, id_: t.Any) -> t.Any:
         return self.data
+
+    def keys(self) -> None:
+        return None
 
     def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         return [self.data for _ in range(len(ids))]
