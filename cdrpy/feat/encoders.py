@@ -41,28 +41,27 @@ class Encoder(ABC, t.Generic[D]):
 
     @property
     @abstractmethod
-    def size(self) -> int:
-        ...
+    def size(self) -> int: ...
 
     @abstractmethod
-    def get(self, id_: t.Any) -> t.Any:
-        ...
+    def get(self, id_: t.Any) -> t.Any: ...
 
     # @abstractmethod
     # def subset(self, ids: t.Iterable[t.Any]) -> Encoder[D]:
     #     ...
 
     @abstractmethod
-    def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]:
-        ...
+    def encode(self, ids: t.Iterable[t.Any]) -> t.Iterable[t.Any]: ...
+
+    @abstractmethod
+    def merge(self, other: Encoder) -> Encoder: ...
 
     # @abstractmethod
     # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
     #     ...
 
     @abstractmethod
-    def tf_signature(self) -> t.Any:
-        ...
+    def tf_signature(self) -> t.Any: ...
 
     # @abstractmethod
     # def save(self, file_or_group: h5py.File | h5py.Group, key: str) -> None:
@@ -116,14 +115,21 @@ class DictEncoder(Encoder[dict]):
         """Encode features for the specified IDs."""
         return [self.data[id_] for id_ in ids]
 
-    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-    #     """Encode features as a `tf.data.Dataset` object."""
-    #     return tf.data.Dataset.from_tensor_slices(self.encode(ids), name=self.name)
-
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(
             self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
         )
+
+    def merge(self, other: DictEncoder, **kwargs) -> DictEncoder:
+        """Returns a new DictEncoder with a union of keys."""
+        assert isinstance(other, DictEncoder)
+        assert self.shape == other.shape
+        assert self.dtype == other.dtype
+
+        # NOTE: we prioritize data already in self
+        # NOTE: we don't check that data with the same key is identical
+        data = {**other.data, **self.data}
+        return DictEncoder(data, **kwargs)
 
 
 class PandasEncoder(Encoder[pd.DataFrame]):
@@ -149,15 +155,22 @@ class PandasEncoder(Encoder[pd.DataFrame]):
         """Returns a dataframe of encoded values."""
         return list(self.data.loc[ids].values)
 
-    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-    #     """Returns features as a `tf.data.Dataset` object."""
-    #     arr = self.encode(ids)
-    #     return tf.data.Dataset.from_tensor_slices(arr, name=self.name)
-
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(
             self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
         )
+
+    def merge(self, other: PandasEncoder, **kwargs) -> PandasEncoder:
+        """Returns a new PandasEncoder with a union of keys."""
+        assert isinstance(other, PandasEncoder)
+        assert self.shape == other.shape
+        assert self.dtype == other.dtype
+
+        # NOTE: we prioritize data already in self
+        # NOTE: we don't check that data with the same key is identical
+        other_data = other.data[~other.data.index.isin(self.data.index)]
+        data = pd.concat([self.data, other_data])
+        return PandasEncoder(data, **kwargs)
 
     @classmethod
     def from_csv(
@@ -216,16 +229,19 @@ class RepeatEncoder(Encoder[t.Any]):
     def encode(self, ids: t.Iterable[t.Any]) -> t.List[t.Any]:
         return [self.data for _ in range(len(ids))]
 
-    # def encode_tf(self, ids: t.Iterable[t.Any]) -> tf.data.Dataset:
-    #     """Return a `tf.data.RepeatDataset object`."""
-    #     return tf.data.Dataset.from_tensor_slices([self.data], name=self.name).repeat(
-    #         len(ids)
-    #     )
-
     def tf_signature(self) -> t.Any:
         return tf.TensorSpec(
             self.shape, dtype=tf.dtypes.as_dtype(self.dtype), name=self.name
         )
+
+    def merge(self, other: RepeatEncoder, **kwargs) -> RepeatEncoder:
+        """Returns a new RepeatEncoder with a union of keys."""
+        assert isinstance(other, RepeatEncoder)
+        assert self.shape == other.shape
+        assert self.dtype == other.dtype
+        # NOTE: we prioritize data already in self
+        # NOTE: we don't check that data with the same key is identical
+        return RepeatEncoder(self.data, **kwargs)
 
 
 EncoderMapper = {
