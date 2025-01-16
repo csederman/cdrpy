@@ -361,7 +361,7 @@ def merge(d1: Dataset, d2: Dataset, drop_duplicates: bool = False, **kwargs) -> 
         drug_encoders=drug_encoders,
         cell_meta=cell_meta,
         drug_meta=drug_meta,
-        *kwargs,
+        **kwargs,
     )
 
 
