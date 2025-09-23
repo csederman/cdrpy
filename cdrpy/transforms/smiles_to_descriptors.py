@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
+import warnings
+from typing import Dict
 
 from rdkit import Chem
 from rdkit.Chem import Descriptors
@@ -19,14 +20,18 @@ class SmilesToDescriptors(DrugFeatureTransform):
 
     _supported_encoders = DictEncoder  # NOTE: must be single type or tuple of types
 
-    def __init__(self, descriptor_list: list[str] = None, **kwargs) -> None:
+    def __init__(
+        self, descriptor_list: list[str] = None, min_desc: int = 10, **kwargs
+    ) -> None:
         """
         Initialize the transformer.
 
         Args:
             descriptor_list: List of descriptor names to compute. If None, uses all available descriptors.
+            min_desc: Minimum number of descriptors required after dropping NaN columns.
         """
         self.descriptor_list = descriptor_list or self._get_all_descriptors()
+        self.min_desc = min_desc
         super().__init__(**kwargs)
 
     def _get_all_descriptors(self) -> list[str]:
@@ -43,14 +48,21 @@ class SmilesToDescriptors(DrugFeatureTransform):
             desc_values = self.get_molecular_descriptors(smiles_str)
             descriptors[key] = desc_values
 
-        # Convert to DataFrame for easier NaN checking
+        # Convert to DataFrame for easier NaN handling
         desc_df = pd.DataFrame.from_dict(descriptors, orient="index")
 
-        # Validate no NaN values
-        self._validate_no_nan(desc_df)
+        # Drop columns with NaN values and warn
+        desc_df_clean = self._drop_nan_columns(desc_df)
+
+        # Check if we have enough features remaining
+        if desc_df_clean.shape[1] < self.min_desc:
+            raise ValueError(
+                f"Too few descriptors remaining after dropping NaN columns. "
+                f"Have {desc_df_clean.shape[1]}, need at least {self.min_desc}."
+            )
 
         # Convert back to dictionary format for encoder
-        descriptor_dict = desc_df.to_dict("index")
+        descriptor_dict = desc_df_clean.to_dict("index")
         # Convert each row to numpy array
         for key in descriptor_dict:
             descriptor_dict[key] = np.array(list(descriptor_dict[key].values()))
@@ -82,26 +94,30 @@ class SmilesToDescriptors(DrugFeatureTransform):
 
         return descriptors
 
-    def _validate_no_nan(self, desc_df: pd.DataFrame) -> None:
+    def _drop_nan_columns(self, desc_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Validate that there are no NaN values in the descriptor matrix.
+        Drop columns with NaN values and warn about dropped columns.
 
         Args:
             desc_df: DataFrame containing descriptors
 
-        Raises:
-            ValueError: If NaN values are found
+        Returns:
+            DataFrame with NaN columns removed
         """
-        nan_mask = desc_df.isna()
-        if nan_mask.any().any():
-            nan_info = []
-            for col in desc_df.columns:
-                if nan_mask[col].any():
-                    nan_count = nan_mask[col].sum()
-                    nan_indices = desc_df.index[nan_mask[col]].tolist()
-                    nan_info.append(
-                        f"  {col}: {nan_count} NaN values at indices {nan_indices}"
-                    )
+        initial_cols = desc_df.shape[1]
+        nan_cols = desc_df.columns[desc_df.isna().any()].tolist()
 
-            error_msg = f"NaN values found in descriptors:\n" + "\n".join(nan_info)
-            raise ValueError(error_msg)
+        if nan_cols:
+            desc_df_clean = desc_df.drop(columns=nan_cols)
+            dropped_count = len(nan_cols)
+            remaining_count = desc_df_clean.shape[1]
+
+            warnings.warn(
+                f"Dropped {dropped_count} descriptor columns with NaN values: {nan_cols}. "
+                f"Remaining descriptors: {remaining_count}/{initial_cols}",
+                UserWarning,
+            )
+        else:
+            desc_df_clean = desc_df
+
+        return desc_df_clean
