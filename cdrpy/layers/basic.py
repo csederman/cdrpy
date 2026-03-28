@@ -1,6 +1,4 @@
-"""
-
-"""
+""" """
 
 from __future__ import annotations
 
@@ -9,8 +7,8 @@ import functools
 import typing as t
 import tensorflow as tf
 
-from tensorflow import keras
-from keras import layers
+from tensorflow import keras  # type: ignore
+from tensorflow.keras import layers  # type: ignore
 
 
 class MLPBlock(layers.Layer):

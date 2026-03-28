@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import typing as t
 
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence  # type: ignore
 from collections import defaultdict
 
 from ..core.utils import is_real_iterable
@@ -63,15 +63,12 @@ class ResponseSequence(Sequence):
 
         if len(cell_ids) != len(drug_ids):
             raise ValueError(
-                "The length of cell_ids must be the same as the length of "
-                "drug_ids"
+                "The length of cell_ids must be the same as the length of " "drug_ids"
             )
 
         if targets is not None:
             if not is_real_iterable(targets):
-                raise TypeError(
-                    "Targets must be None or an iterable or a numpy array."
-                )
+                raise TypeError("Targets must be None or an iterable or a numpy array.")
             if len(cell_ids) != len(targets):
                 raise ValueError(
                     (
@@ -86,8 +83,7 @@ class ResponseSequence(Sequence):
         if sample_weights is not None:
             if not is_real_iterable(sample_weights):
                 raise TypeError(
-                    "sample_weights must be None or an iterable or a numpy "
-                    "array."
+                    "sample_weights must be None or an iterable or a numpy " "array."
                 )
             if len(cell_ids) != len(sample_weights):
                 raise ValueError(
@@ -134,14 +130,10 @@ class ResponseSequence(Sequence):
         batch_cell_ids = self.cell_ids[batch_indices]
         batch_drug_ids = self.drug_ids[batch_indices]
 
-        batch_targets = (
-            None if self.targets is None else self.targets[batch_indices]
-        )
+        batch_targets = None if self.targets is None else self.targets[batch_indices]
 
         batch_sample_weights = (
-            None
-            if self.sample_weights is None
-            else self.sample_weights[batch_indices]
+            None if self.sample_weights is None else self.sample_weights[batch_indices]
         )
 
         batch_feats = self._encode_function(batch_cell_ids, batch_drug_ids)

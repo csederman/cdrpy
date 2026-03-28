@@ -10,7 +10,7 @@ import functools
 import numpy as np
 import typing as t
 
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence  # type: ignore
 
 
 from .base import Generator
