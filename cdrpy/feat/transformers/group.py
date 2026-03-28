@@ -111,13 +111,25 @@ class GroupStandardScaler(BaseEstimator, GroupTransformerMixin, OneToOneFeatureM
         check_is_fitted(self)
 
         copy = copy if copy is not None else self.copy
-        X = self._validate_data(
-            X,
-            reset=False,
-            copy=copy,
-            dtype=FLOAT_DTYPES,
-            force_all_finite="allow-nan",
-        )
+        try:
+            X = self._validate_data(
+                X,
+                reset=False,
+                copy=copy,
+                dtype=FLOAT_DTYPES,
+                force_all_finite="allow-nan",
+            )
+        except AttributeError:
+            from sklearn.utils.validation import validate_data
+
+            X = validate_data(
+                self,
+                X,
+                reset=False,
+                copy=copy,
+                dtype=FLOAT_DTYPES,
+                ensure_all_finite="allow-nan"
+            )
 
         groups = column_or_1d(groups)
         if any([g not in self.groups_seen_ for g in groups]):
