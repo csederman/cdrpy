@@ -76,7 +76,7 @@ class GroupStandardScaler(BaseEstimator, GroupTransformerMixin, OneToOneFeatureM
         except AttributeError:
             from sklearn.utils.validation import validate_data
 
-            X = validate_data(self, X, dtype=FLOAT_DTYPES, force_all_finite="allow-nan")
+            X = validate_data(self, X, dtype=FLOAT_DTYPES, ensure_all_finite="allow-nan")
 
         groups = column_or_1d(groups)
         unique_groups = np.unique(groups)
