@@ -70,7 +70,13 @@ class GroupStandardScaler(BaseEstimator, GroupTransformerMixin, OneToOneFeatureM
             raise ValueError("The 'groups' parameter should not be None.")
 
         check_consistent_length(X, y, groups)
-        X = self._validate_data(X, dtype=FLOAT_DTYPES, force_all_finite="allow-nan")
+        try:
+            # backwards compat for older sklearn versions
+            X = self._validate_data(X, dtype=FLOAT_DTYPES, force_all_finite="allow-nan")
+        except AttributeError:
+            from sklearn.utils.validation import validate_data
+
+            X = validate_data(self, X, dtype=FLOAT_DTYPES, force_all_finite="allow-nan")
 
         groups = column_or_1d(groups)
         unique_groups = np.unique(groups)
